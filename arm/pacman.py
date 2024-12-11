@@ -1,3 +1,9 @@
+"""
+Simple demonstration of movement possibilities.
+This script moves the "hand" of the robotic arm up and down.
+Looks like pacman.
+"""
+
 # import argparse
 import requests
 from time import sleep
@@ -19,9 +25,9 @@ def main():
         while True:
             # command = input("input your json cmd: ")
             if switch:
-                move_hand.up_slow()
-            else:
                 move_hand.down_slow()
+            else:
+                move_hand.up_slow()
             switch = not switch
             sleep(5)
     except KeyboardInterrupt:
@@ -30,11 +36,11 @@ def main():
 
 
 def run_and_get_response(command: str) -> str:
-        url = "http://" + IP_ADDR + "/js?json=" + command
-        response = requests.get(url)
-        content = response.text
-        print(content)
-        return content
+    url = "http://" + IP_ADDR + "/js?json=" + command
+    response = requests.get(url)
+    content = response.text
+    print(content)
+    return content
 
 
 def reset_coord():
@@ -46,16 +52,16 @@ class HandMovement:
     def __init__(self):
         pass
 
-    def up_slow(self):
-        command = '{"T":123,"m":0,"axis":4,"cmd":2,"spd":5}' # up
+    def down_slow(self):
+        command = '{"T":123,"m":0,"axis":4,"cmd":2,"spd":5}'  # down
         run_and_get_response(command)
 
-    def down_slow(self):
-        command = '{"T":123,"m":0,"axis":4,"cmd":1,"spd":5}' # down
+    def up_slow(self):
+        command = '{"T":123,"m":0,"axis":4,"cmd":1,"spd":5}'  # up
         run_and_get_response(command)
 
     def stop(self):
-        command = '{"T":123,"m":0,"axis":4,"cmd":0,"spd":5}' # stop
+        command = '{"T":123,"m":0,"axis":4,"cmd":0,"spd":5}'  # stop
         run_and_get_response(command)
 
 
