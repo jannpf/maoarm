@@ -2,7 +2,7 @@ import cv2
 from multiprocessing.connection import Client
 
 
-faceCascade = cv2.CascadeClassifier("./cascades/haarcascade_frontalface_default.xml")
+faceCascade = cv2.CascadeClassifier("/home/jann/maoarm/cascades/haarcascade_frontalface_default.xml")
 video_capture = cv2.VideoCapture(0)
 video_capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 video_capture.isOpened()
@@ -38,11 +38,11 @@ try:
             cv2.circle(frame, (x+int(w/2),y+int(h/2)), radius=3, color=(0,0,255))
         
         # convert the coor so that 0,0 is in the center
-        (lx, ly, lw, lh) = (lx - width/2, ly - height/2, lw, lh)
+        (lx, ly) = (lx - width/2, ly - height/2)
 
         # return the middle coordinate of the face
-        (lx, ly, lw, lh) = ((lx+int(lw/2),ly+int(lh/2),lw,lh))
-        conn.send((lx, -ly, lw, lh))
+        (lx, ly) = ((lx+int(lw/2),ly+int(lh/2)))
+        conn.send((lx, -ly, lw, lh, width, height))
 
         # Display the resulting frame
         cv2.imshow('Video', frame)
