@@ -5,7 +5,6 @@ import logging
 from collections import deque
 from multiprocessing.connection import Listener
 
-import numpy as np
 from ArmControl import AngleControl
 
 
@@ -57,7 +56,7 @@ def move_control(control: AngleControl, target_x, target_y, width, height):
 
 def control_movement():
     c = AngleControl(ARM_ADDRESS)
-    c.reset()
+    c.to_initial_position()
 
     while True:
         with face_lock:
@@ -69,7 +68,7 @@ def control_movement():
             print(f"Moving to {x},{y} ({width}, {height})")
             c.led_on(80)
             move_control(c, x, y, width, height)
-        time.sleep(0.05)
+        time.sleep(0.025)
 
 
 def process():
@@ -89,6 +88,9 @@ def process():
                     current_face = (0, 0, 0, 0)
         except queue.Empty:
             continue
+        except KeyboardInterrupt:
+            AngleControl(ARM_ADDRESS).to_initial_position()
+            break
 
 
 def main():
