@@ -67,9 +67,9 @@ def detect_middle_finger(hand_landmarks):
     middle_straight = middle_angle > 160  # Middle finger is straight
 
     # Other fingers should be folded
-    index_folded = index_tip.y > index_pip.y + threshold
-    ring_folded = ring_tip.y > ring_pip.y + threshold
-    pinky_folded = pinky_tip.y > pinky_pip.y + threshold
+    index_folded = index_tip.y > index_pip.y
+    ring_folded = ring_tip.y > ring_pip.y
+    pinky_folded = pinky_tip.y > pinky_pip.y
 
     if middle_raised and middle_straight and index_folded and ring_folded and pinky_folded:
         return "Middle Finger"
