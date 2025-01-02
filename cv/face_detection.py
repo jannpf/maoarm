@@ -1,65 +1,103 @@
+import os
 import cv2
 from multiprocessing.connection import Client
+from . import detection
+# CaffeFaces, MediapipeGestures
 
-conn = Client(("localhost", 6282))
+
+def to_center_coord(x1, y1, x2, y2, width, height):
+    (lx, ly, lw, lh) = (x1, x2, x2-x1, y2-y1)
+
+    # convert the coor so that 0,0 is in the center
+    (lx, ly) = (lx - width/2, ly - height/2)
+
+    # return the middle coordinate of the face
+    (lx, ly) = ((lx+int(lw/2), ly+int(lh/2)))
+
+    return (lx, -ly, lw, lh, width, height)
+
+
+def box_size(x1, y1, x2, y2):
+    return (x2-x1)*(y2-y1)
+
 
 video_capture = cv2.VideoCapture(0)
-video_capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc("M", "J", "P", "G"))
+video_capture.set(cv2.CAP_PROP_FOURCC,
+                  cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
 video_capture.isOpened()
 
 width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
 height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
+conn = Client(('localhost', 6282))
 
-def get_boxes(ret, frame):
-    faceCascade = cv2.CascadeClassifier(
-        "../cascades/haarcascade_frontalface_default.xml"
-    )
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
-    faces = faceCascade.detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(30, 30),
-        flags=cv2.CASCADE_SCALE_IMAGE,
-    )
+# face detection setup
+face_model_file = os.path.join(
+    base_dir, 'models', 'res10_300x300_ssd_iter_140000.caffemodel')
+face_config_file = os.path.join(base_dir, 'models', 'deploy.prototxt')
+face_detector = detection.CaffeFaces(face_model_file, face_config_file)
 
-    # Draw a rectangle around the faces
-    (lx, ly, lw, lh) = (width / 2, height / 2, 0, 0)
-    largest_size = 0
-    for x, y, w, h in faces:
-        if w * h > largest_size:
-            (lx, ly, lw, lh) = (x, y, w, h)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.circle(frame, (x + int(w / 2), y + int(h / 2)), radius=3, color=(0, 0, 255))
-    return (lx, ly, lw, lh)
-
+# gesture recognition setup
+modelpath = os.path.join(base_dir, 'models', 'gesture_recognizer.task')
+gesture_recognizer = detection.MediapipeGestures(modelpath)
 
 try:
     while True:
+        # Capture frame-by-frame
         ret, frame = video_capture.read()
         if not ret:
-            print("Failed to capture frame. Exiting...")
+            print('Failed to capture frame.')
             break
-        (lx, ly, lw, lh) = get_boxes(ret, frame)
 
-        # convert the coor so that 0,0 is in the center
-        (lx, ly) = (lx - width / 2, ly - height / 2)
+        # Face Detection
+        detections = face_detector.detect(frame)
 
-        # return the middle coordinate of the face
-        (lx, ly) = (lx + int(lw / 2), ly + int(lh / 2))
-        conn.send((lx, -ly, lw, lh, width, height))
+        # draw bounding boxes and get largest face
+
+        faces_sorted = sorted(detections.items(),
+                              key=lambda r: box_size(*r[0]))
+
+        # draw the bounding boxes for all faces
+        for box, confidence in faces_sorted:
+            x1, y1, x2, y2 = box
+            if confidence > 0.5:
+                # Draw a rectangle around the faces
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.circle(frame, (int((x1+x2)/2), int((y1+y2)/2)),
+                           radius=3, color=(0, 0, 255))
+
+        # send largest face to control process
+        if faces_sorted:
+            face = to_center_coord(*faces_sorted[-1][0], width, height)
+        else:
+            face = (None, None, None, None, width, height)
+
+        # recognize gestures
+        gestures = gesture_recognizer.detect(frame)
+        gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
+
+        if gestures_sorted:
+            gesture = gestures_sorted[-1][0]
+            cv2.putText(frame, gesture, (50, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        else:
+            gesture = None
+
+        # send results
+        print((face, gesture))
+        conn.send((face, gesture))
 
         # Display the resulting frame
-        cv2.imshow("Video", frame)
+        cv2.imshow('Video', frame)
 
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     # When everything is done, release the capture
     video_capture.release()
     cv2.destroyAllWindows()
 finally:
-    conn.send("close")
+    conn.send('close')
     conn.close()
