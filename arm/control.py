@@ -76,22 +76,20 @@ def process():
     global current_face
     while True:
         try:
-            data = data_queue.get(timeout=1)
-            window.append(data)
-            if len(window) == WINDOW_SIZE and all(x[:4] != (0, 0, 0, 0) for x in window):
-                print(f"Face at: {data}, queue len: {data_queue.qsize()}")
-                (x, y, _, _, width, height) = data
+            face, gesture = data_queue.get(timeout=1)
+            window.append(face)
+            if len(window) == WINDOW_SIZE and all(None not in x[:4] for x in window):
+                print(f"Face at: {face}, queue len: {data_queue.qsize()}")
+                (x, y, _, _, width, height) = face
                 with face_lock:
                     current_face = (x, y, width, height)
             else:
                 with face_lock:
                     current_face = (0, 0, 0, 0)
+            if gesture:
+                print(f"Gesture: {gesture}")
         except queue.Empty:
             continue
-        except KeyboardInterrupt:
-            AngleControl(ARM_ADDRESS).to_initial_position()
-            break
-
 
 def main():
     input_thread = threading.Thread(target=listen, daemon=True)
