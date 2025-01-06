@@ -1,3 +1,8 @@
+"""
+Python wrapper around http commands for controlling robotic arm:
+https://www.waveshare.com/wiki/RoArm-M2-S_Robotic_Arm_Control
+"""
+
 import requests
 import json
 

@@ -6,6 +6,18 @@ from . import detection
 
 
 def to_center_coord(x1, y1, x2, y2, width, height):
+    """
+    Convert bounding box coordinates to centered coordinates.
+    Returns:
+        tuple[int, int, int, int, int, int]: A tuple containing:
+            - lx: Center x-coordinate with respect to the frame's center.
+            - ly: Center y-coordinate with respect to the frame's center (inverted).
+            - lw: Width of the bounding box.
+            - lh: Height of the bounding box.
+            - width: The input width of the frame.
+            - height: The input height of the frame.
+    """
+
     (lx, ly, lw, lh) = (x1, x2, x2-x1, y2-y1)
 
     # convert the coor so that 0,0 is in the center
@@ -21,6 +33,7 @@ def box_size(x1, y1, x2, y2):
     return (x2-x1)*(y2-y1)
 
 
+# video capture setup
 video_capture = cv2.VideoCapture(0)
 video_capture.set(cv2.CAP_PROP_FOURCC,
                   cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
@@ -29,11 +42,12 @@ video_capture.isOpened()
 width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
 height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
-conn = Client(('localhost', 6282))
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
+# IP address to communicate data with
+conn = Client(('localhost', 6282))  # port in accordance with arm/control.py
 
 # face detection setup
+# TODO: enable command-line choice of detection algorithm
+base_dir = os.path.dirname(os.path.abspath(__file__))
 face_model_file = os.path.join(
     base_dir, 'models', 'res10_300x300_ssd_iter_140000.caffemodel')
 face_config_file = os.path.join(base_dir, 'models', 'deploy.prototxt')
@@ -55,7 +69,6 @@ try:
         detections = face_detector.detect(frame)
 
         # draw bounding boxes and get largest face
-
         faces_sorted = sorted(detections.items(),
                               key=lambda r: box_size(*r[0]))
 

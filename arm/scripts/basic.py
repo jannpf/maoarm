@@ -1,10 +1,14 @@
+"""
+Basic code for connecting to arm, copypasted from official docs.
+"""
+
 import requests
 import argparse
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Http JSON Communication')
-    parser.add_argument('ip', type=str, help='IP address: 192.168.4.1')
+    parser = argparse.ArgumentParser(description="Http JSON Communication")
+    parser.add_argument("ip", type=str, help="IP address: 192.168.4.1")
 
     args = parser.parse_args()
 
