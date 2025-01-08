@@ -9,7 +9,7 @@ Controlling the movement of the robotic arm RoArm-M2-S. In a cat-like way (whate
 In 2 separate terminal windows, run the following scripts:
 
 ```sh
-python3 cv/__main__.py
+python3 -m cv
 python3 arm/control.py
 ```
 
