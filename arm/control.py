@@ -58,7 +58,8 @@ class PID:
         """
         self.kpx = 12
         self.kpy = 16
-        # self.ki = ki
+        self.kix = 0
+        self.kiy = 0
         # self.kd = kd
         self.control = control
         # self.setpoint = setpoint
@@ -66,9 +67,11 @@ class PID:
         # self.max_output = max_output
 
         # Internal variables
-        self.integral = 0
-        self.last_error = 0
-        self.last_time = None
+        self.error_sum_x = 0
+        self.error_sum_y = 0
+        # self.last_error = 0
+        # self.last_time = None
+        self.dt = MVMT_UPDATE_TIME
 
     def move_control(
         self,
@@ -99,8 +102,14 @@ class PID:
         p_x = self.kpx * error_x
         p_y = self.kpy * error_y
 
-        spdx = int(p_x) + 8
-        spdy = int(p_y) + 4
+        # Integral term
+        self.error_sum_x += error_x * self.dt
+        self.error_sum_x += error_x * self.dt
+        i_x = self.error_sum_x * self.kix
+        i_y = self.error_sum_y * self.kiy
+
+        spdx = int(p_x + i_x) + 8
+        spdy = int(p_y + i_y) + 4
 
         if target_x > 10:
             self.control.base_cw(spdx)
