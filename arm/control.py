@@ -9,6 +9,7 @@ import threading
 import logging
 from collections import deque
 from multiprocessing.connection import Listener
+from typing import Optional
 
 from ArmControl import AngleControl
 
@@ -48,36 +49,71 @@ def listen():
     listener.close()
 
 
-def move_control(control: AngleControl, target_x, target_y, width, height):
-    """
-    Moves the robotic arm in the direction of the specified coordinates
-    (e.g. the central point of the detected face).
-    Adjusts movement speed proportionally based on distance from the target
-    to ensure smooth control.
+class PID:
+    def _init_(self, control, setpoint=0, min_output=-10, max_output=10):
+        """
+        kp, ki, kd: PID gains.
+        setpoint:   Desired target (usually 0 for "centered").
+        min_output, max_output: limits for the controller output.
+        """
+        self.kpx = 12
+        self.kpy = 16
+        # self.ki = ki
+        # self.kd = kd
+        self.control = control
+        # self.setpoint = setpoint
+        # self.min_output = min_output
+        # self.max_output = max_output
 
-    Args:
-        control (AngleControl): The control interface for the robotic arm.
-        target_x: Target x-coordinate relative to the frame's center.
-        target_y: Target y-coordinate relative to the frame's center.
-        width: Width of the frame/image.
-        height: Height of the frame/image.
-    """
+        # Internal variables
+        self.integral = 0
+        self.last_error = 0
+        self.last_time = None
 
-    spdx = int(target_x / (width/2) * 12) + 8
-    spdy = int(target_y / (height/2) * 16) + 4
+    def move_control(
+        self,
+        target_x,
+        target_y,
+        width,
+        height,
+        last_face: Optional[tuple],
+    ):
+        """
+        Moves the robotic arm in the direction of the specified coordinates
+        (e.g. the central point of the detected face).
+        Adjusts movement speed proportionally based on distance from the target
+        to ensure smooth control.
 
-    if target_x > 10:
-        control.base_cw(spdx)
-    elif target_x < -10:
-        control.base_ccw(spdx)
-    else:
-        control.base_stop()
-    if target_y > 5:
-        control.elbow_up(spdy)
-    elif target_y < -5:
-        control.elbow_down(spdy)
-    else:
-        control.elbow_stop()
+        Args:
+            control (AngleControl): The control interface for the robotic arm.
+            target_x: Target x-coordinate relative to the frame's center.
+            target_y: Target y-coordinate relative to the frame's center.
+            width: Width of the frame/image.
+            height: Height of the frame/image.
+            last_face (tuple): (x, y, w, h) for face position at prev time step.
+        """
+        error_x = target_x / (width / 2)
+        error_y = target_y / (height / 2)
+
+        # Proportional term
+        p_x = self.kpx * error_x
+        p_y = self.kpy * error_y
+
+        spdx = int(p_x) + 8
+        spdy = int(p_y) + 4
+
+        if target_x > 10:
+            self.control.base_cw(spdx)
+        elif target_x < -10:
+            self.control.base_ccw(spdx)
+        else:
+            self.control.base_stop()
+        if target_y > 5:
+            self.control.elbow_up(spdy)
+        elif target_y < -5:
+            self.control.elbow_down(spdy)
+        else:
+            self.control.elbow_stop()
 
 
 def control_movement():
@@ -89,6 +125,8 @@ def control_movement():
 
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
+    last_face = None
+    pid = PID(control=c)
 
     while True:
         with face_lock:  # data shared with process()
@@ -103,7 +141,8 @@ def control_movement():
         else:
             print(f"Moving to {x},{y} ({width}, {height})")
             c.led_on(80)
-            move_control(c, x, y, width, height)
+            pid.move_control(x, y, width, height, last_face)
+        last_face = x, y, width, height
         time.sleep(MVMT_UPDATE_TIME)
 
 
@@ -115,6 +154,7 @@ def process():
 
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
+    # TODO: last_error, last_timestamp, current_timestamp
     while True:
         try:
             face, gesture = data_queue.get(timeout=1)
