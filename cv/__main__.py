@@ -18,7 +18,7 @@ def to_center_coord(x1, y1, x2, y2, width, height):
             - height: The input height of the frame.
     """
 
-    (lx, ly, lw, lh) = (x1, x2, x2-x1, y2-y1)
+    (lx, ly, lw, lh) = (x1, y1, x2-x1, y2-y1)
 
     # convert the coor so that 0,0 is in the center
     (lx, ly) = (lx - width/2, ly - height/2)
@@ -66,7 +66,7 @@ try:
             break
 
         # Face Detection
-        detections = face_detector.detect(frame)
+        detections = face_detector.detect(frame, width, height)
 
         # draw bounding boxes and get largest face
         faces_sorted = sorted(detections.items(),
