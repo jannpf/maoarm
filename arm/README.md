@@ -1,6 +1,6 @@
 # arm
 
-A collection of python scripts for controlling the arm movement.
+A python package for controlling the arm movement. `ArmControl.py` contains basic movement commands. `control.py` sets up an interface to listen to updates from face detection algorithm and adjust the arm position accordingly.
 
 ## Some notes on movement
 
