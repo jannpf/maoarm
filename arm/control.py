@@ -17,7 +17,7 @@ from ArmControl import AngleControl
 WINDOW_SIZE = 5
 IPC_PORT = 6282
 ARM_ADDRESS = '192.168.4.1'
-MVMT_UPDATE_TIME = 0.025  # how often to check for current coord
+MVMT_UPDATE_TIME = 0.015  # how often to check for current coord
 
 data_queue = queue.Queue(maxsize=100)
 # ensures safe (one thread at a time) access to shared data
@@ -58,15 +58,15 @@ class PID:
         """
         self.kpx = 12
         self.kpy = 16
-        self.kix = 0
-        self.kiy = 0
-        self.kdx = 0
-        self.kdy = 0
+        self.kix = 0.1
+        self.kiy = 0.1
+        self.kdx = 0.1
+        self.kdy = 0.1
         self.control = control
 
         self.min_output_x = 4
         self.max_output_x = 20
-        self.min_output_y = 8
+        self.min_output_y = 2
         self.max_output_y = 20
 
         # Internal variables
@@ -97,8 +97,8 @@ class PID:
             height: Height of the frame/image.
             last_face (tuple): (x, y, w, h) for face position at prev time step.
         """
-        error_x = target_x / (width / 2)
-        error_y = target_y / (height / 2)
+        error_x = abs(target_x / (width / 2))
+        error_y = abs(target_y / (height / 2))
 
         # Proportional term
         p_x = self.kpx * error_x
@@ -119,20 +119,22 @@ class PID:
         # PID output
         control_x = p_x + i_x + d_x
         control_y = p_y + i_y + d_y
+        print(f"{control_x=}")
+        print(f"{control_y=}")
 
         # np.clip from min to max
         spdx = min(max(int(control_x), self.min_output_x), self.max_output_x)
         spdy = min(max(int(control_y), self.min_output_y), self.max_output_y)
 
-        if target_x > 10:
+        if target_x > width / 20:
             self.control.base_cw(spdx)
-        elif target_x < -10:
+        elif target_x < - width / 20:
             self.control.base_ccw(spdx)
         else:
             self.control.base_stop()
-        if target_y > 5:
+        if target_y > height / 10:
             self.control.elbow_up(spdy)
-        elif target_y < -5:
+        elif target_y < - height / 10:
             self.control.elbow_down(spdy)
         else:
             self.control.elbow_stop()
@@ -172,18 +174,40 @@ def process():
     served by listener(). Updates current_face global variable.
     """
 
+    def get_face_coord_ratio(previous_frame, current_frame):
+        """
+        Helper function. Designed for the purpose of ignoring face update
+        when coordinates change too dramatically
+        """
+        current_x = current_frame[0]
+        current_y = current_frame[1]
+        previous_x = previous_frame[0]
+        previous_y = previous_frame[1]
+        ratio_x = abs((current_x - previous_x) / previous_x)
+        ratio_y = abs((current_y - previous_y) / previous_y)
+        ratio = max(ratio_x, ratio_y)
+        return ratio
+
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
-    # TODO: last_error, last_timestamp, current_timestamp
+
     while True:
         try:
             face, gesture = data_queue.get(timeout=1)
             window.append(face)
-            if len(window) == WINDOW_SIZE and all(None not in x[:4] for x in window):
-                print(f"Face at: {face}, queue len: {data_queue.qsize()}")
-                (x, y, _, _, width, height) = face
-                with face_lock:  # data shared with control_movement()
-                    current_face = (x, y, width, height)
+
+            if (
+                len(window) == WINDOW_SIZE
+                and all(x is not None for x in window[-1])  # current face
+                and all(x is not None for x in window[-2])  # previous face
+            ):
+                ratio = get_face_coord_ratio(window[-1], window[-2])
+                # 1.3 is empirical
+                if ratio < 1.3:  # if face did not move/change too quickly
+                    print(f"Face at: {face}, queue len: {data_queue.qsize()}")
+                    (x, y, _, _, width, height) = face
+                    with face_lock:  # data shared with control_movement()
+                        current_face = (x, y, width, height)
             else:
                 with face_lock:
                     current_face = (0, 0, 0, 0)
