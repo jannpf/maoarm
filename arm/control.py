@@ -50,7 +50,7 @@ def listen():
 
 
 class PID:
-    def _init_(self, control, setpoint=0, min_output=-10, max_output=10):
+    def __init__(self, control):
         """
         kp, ki, kd: PID gains.
         setpoint:   Desired target (usually 0 for "centered").
@@ -60,17 +60,20 @@ class PID:
         self.kpy = 16
         self.kix = 0
         self.kiy = 0
-        # self.kd = kd
+        self.kdx = 0
+        self.kdy = 0
         self.control = control
-        # self.setpoint = setpoint
-        # self.min_output = min_output
-        # self.max_output = max_output
+
+        self.min_output_x = 4
+        self.max_output_x = 20
+        self.min_output_y = 8
+        self.max_output_y = 20
 
         # Internal variables
         self.error_sum_x = 0
         self.error_sum_y = 0
-        # self.last_error = 0
-        # self.last_time = None
+        self.last_error_x = 0
+        self.last_error_y = 0
         self.dt = MVMT_UPDATE_TIME
 
     def move_control(
@@ -79,7 +82,6 @@ class PID:
         target_y,
         width,
         height,
-        last_face: Optional[tuple],
     ):
         """
         Moves the robotic arm in the direction of the specified coordinates
@@ -108,8 +110,19 @@ class PID:
         i_x = self.error_sum_x * self.kix
         i_y = self.error_sum_y * self.kiy
 
-        spdx = int(p_x + i_x) + 8
-        spdy = int(p_y + i_y) + 4
+        # Derivative term
+        d_x = self.kdx * (error_x - self.last_error_x) / self.dt
+        d_y = self.kdy * (error_y - self.last_error_y) / self.dt
+        self.last_error_x = error_x
+        self.last_error_y = error_x
+
+        # PID output
+        control_x = p_x + i_x + d_x
+        control_y = p_y + i_y + d_y
+
+        # np.clip from min to max
+        spdx = min(max(int(control_x), self.min_output_x), self.max_output_x)
+        spdy = min(max(int(control_y), self.min_output_y), self.max_output_y)
 
         if target_x > 10:
             self.control.base_cw(spdx)
@@ -134,7 +147,6 @@ def control_movement():
 
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
-    last_face = None
     pid = PID(control=c)
 
     while True:
@@ -150,8 +162,7 @@ def control_movement():
         else:
             print(f"Moving to {x},{y} ({width}, {height})")
             c.led_on(80)
-            pid.move_control(x, y, width, height, last_face)
-        last_face = x, y, width, height
+            pid.move_control(x, y, width, height)
         time.sleep(MVMT_UPDATE_TIME)
 
 
@@ -181,6 +192,7 @@ def process():
                 print(f"Gesture: {gesture}")
         except queue.Empty:
             continue
+
 
 def main():
     input_thread = threading.Thread(target=listen, daemon=True)
