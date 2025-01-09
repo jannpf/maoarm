@@ -176,7 +176,7 @@ def control_movement():
             c.to_initial_position()
             c.led_off()
         else:
-            print(f"Moving to {x},{y} ({frame_width}, {frame_height})")
+            print(f"Moving to {x},{y}; ({frame_width}x{frame_height})")
             c.led_on(40)
             pid.move_control(x, y, frame_width, frame_height)
         time.sleep(MVMT_UPDATE_TIME)
@@ -189,7 +189,7 @@ def process():
     """
 
     def face_coord_ratio_lower_than_threshold(
-        previous_face: tuple, current_face: tuple, threshold: float = 1.3
+        previous_face: Face, current_face: Face, threshold: float = 1.3
     ) -> bool:
         """
         Helper function. Designed for the purpose of ignoring face update
@@ -198,12 +198,12 @@ def process():
         Returns True if face did not move/change more
         than by the factor of threshold.
         """
-        current_x = current_face[0]
-        current_y = current_face[1]
-        previous_x = previous_face[0]
-        previous_y = previous_face[1]
-        ratio_x = 1 + abs((current_x - previous_x) / previous_x)
-        ratio_y = 1 + abs((current_y - previous_y) / previous_y)
+        current_x = current_face.x
+        current_y = current_face.y
+        previous_x = previous_face.x or 1e-5  # avoid div by zero
+        previous_y = previous_face.y or 1e-5
+        ratio_x = 1 + abs((current_x - previous_x) / previous_x)  # type: ignore
+        ratio_y = 1 + abs((current_y - previous_y) / previous_y)  # type: ignore
         ratio = max(ratio_x, ratio_y)
         # Empirically 1.3 is the best threshold
         return ratio < threshold
@@ -229,7 +229,7 @@ def process():
                 # don't differ too much
                 # TODO: this is empirical, maybe find more robust logic
                 if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
-                    print(f"Face at: {face}, queue len: {data_queue.qsize()}")
+                    print(f"{face}, queue len: {data_queue.qsize()}")
                     with face_lock:  # data shared with control_movement()
                         current_face = face
             else:  # case face not detected 2 frames in a row
