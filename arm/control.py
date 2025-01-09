@@ -188,8 +188,8 @@ def process():
         current_y = current_frame[1]
         previous_x = previous_frame[0]
         previous_y = previous_frame[1]
-        ratio_x = abs((current_x - previous_x) / previous_x)
-        ratio_y = abs((current_y - previous_y) / previous_y)
+        ratio_x = 1 + abs((current_x - previous_x) / previous_x)
+        ratio_y = 1 + abs((current_y - previous_y) / previous_y)
         ratio = max(ratio_x, ratio_y)
         return ratio
 
