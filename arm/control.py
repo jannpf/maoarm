@@ -10,6 +10,7 @@ import threading
 import logging
 from collections import deque
 from multiprocessing.connection import Listener
+from cv.face import Face
 
 from arm import AngleControl, PID
 
@@ -24,16 +25,7 @@ data_queue = queue.Queue(maxsize=100)
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
 
-"""
-Face has (x, y, w, h) interface in accordance with CV algo, where:
-    x: (float): x coord of the centre of face's bounding box.
-        Lies within [-w/2: w/2] interval, w/2 is on the right
-    y: (float): y coord of the centre of face's bounding box
-        Lies within [-h/2: h/2] interval, h/2 is up (!)
-    w: (float): width of the frame (not the width of the bounding box)
-    h: (float): height of the frame (not the height of the bounding box)
-"""
-current_face = (0, 0, 0, 0)
+current_face = Face.empty()
 
 logging.basicConfig(handlers=[logging.StreamHandler()])
 logger = logging.getLogger()
@@ -49,7 +41,7 @@ def listen():
     conn = listener.accept()
     print('connection accepted from', listener.last_accepted)
     while True:
-        msg = conn.recv()  # face and gesture from CV algo
+        msg = conn.recv()  # face, gesture from CV algo
         if msg == 'close':
             conn.close()
             break
@@ -170,8 +162,13 @@ def control_movement():
 
     while True:
         with face_lock:  # data shared with process()
-            x, y, width, height = current_face
-        if x == 0 and y == 0:  # case no face detected
+            x, y, frame_width, frame_height = (
+                current_face.x or 0,
+                current_face.y or 0,
+                current_face.frame_width,
+                current_face.frame_height
+            )
+        if not current_face.is_detected():
             c.stop()
             c.led_off()
         elif c.elbow_breach() or c.base_breach():
@@ -179,9 +176,9 @@ def control_movement():
             c.to_initial_position()
             c.led_off()
         else:
-            print(f"Moving to {x},{y} ({width}, {height})")
+            print(f"Moving to {x},{y} ({frame_width}, {frame_height})")
             c.led_on(40)
-            pid.move_control(x, y, width, height)
+            pid.move_control(x, y, frame_width, frame_height)
         time.sleep(MVMT_UPDATE_TIME)
 
 
@@ -213,6 +210,8 @@ def process():
 
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
+    face: Face
+    gesture: str
 
     while True:
         try:
@@ -223,20 +222,19 @@ def process():
             # TODO: this is empirical, maybe find more robust logic
             if (
                 len(window) == WINDOW_SIZE
-                and all(x is not None for x in window[-1])  # current face/frame
-                and all(x is not None for x in window[-2])  # previous face/frame
+                and face.is_detected()  # current face/frame
+                and window[-2].is_detected()  # previous face/frame
             ):
                 # only runs face updates when faces in 2 consecutive frames
                 # don't differ too much
                 # TODO: this is empirical, maybe find more robust logic
                 if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
                     print(f"Face at: {face}, queue len: {data_queue.qsize()}")
-                    (x, y, _, _, width, height) = face
                     with face_lock:  # data shared with control_movement()
-                        current_face = (x, y, width, height)
+                        current_face = face
             else:  # case face not detected 2 frames in a row
                 with face_lock:
-                    current_face = (0, 0, 0, 0)
+                    current_face = Face.empty()
 
             if gesture:
                 # TODO: add current_gesture global?
