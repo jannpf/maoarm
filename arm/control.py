@@ -10,17 +10,28 @@ import logging
 from collections import deque
 from multiprocessing.connection import Listener
 
-from ArmControl import AngleControl
+from arm import AngleControl, PID
 
 
 WINDOW_SIZE = 5
 IPC_PORT = 6282
 ARM_ADDRESS = '192.168.4.1'
-MVMT_UPDATE_TIME = 0.025  # how often to check for current coord
+MVMT_UPDATE_TIME = 0.015  # how often to check for current coord
 
 data_queue = queue.Queue(maxsize=100)
+
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
+
+"""
+Face has (x, y, w, h) interface in accordance with CV algo, where:
+    x: (float): x coord of the centre of face's bounding box.
+        Lies within [-w/2: w/2] interval, w/2 is on the right
+    y: (float): y coord of the centre of face's bounding box
+        Lies within [-h/2: h/2] interval, h/2 is up (!)
+    w: (float): width of the frame (not the width of the bounding box)
+    h: (float): height of the frame (not the height of the bounding box)
+"""
 current_face = (0, 0, 0, 0)
 
 logging.basicConfig(handlers=[logging.StreamHandler()])
@@ -37,7 +48,7 @@ def listen():
     conn = listener.accept()
     print('connection accepted from', listener.last_accepted)
     while True:
-        msg = conn.recv()
+        msg = conn.recv()  # face and gesture from CV algo
         if msg == 'close':
             conn.close()
             break
@@ -46,38 +57,6 @@ def listen():
         except queue.Full:
             print("Queue is full! Dropping...")
     listener.close()
-
-
-def move_control(control: AngleControl, target_x, target_y, width, height):
-    """
-    Moves the robotic arm in the direction of the specified coordinates
-    (e.g. the central point of the detected face).
-    Adjusts movement speed proportionally based on distance from the target
-    to ensure smooth control.
-
-    Args:
-        control (AngleControl): The control interface for the robotic arm.
-        target_x: Target x-coordinate relative to the frame's center.
-        target_y: Target y-coordinate relative to the frame's center.
-        width: Width of the frame/image.
-        height: Height of the frame/image.
-    """
-
-    spdx = int(target_x / (width/2) * 12) + 8
-    spdy = int(target_y / (height/2) * 16) + 4
-
-    if target_x > 10:
-        control.base_cw(spdx)
-    elif target_x < -10:
-        control.base_ccw(spdx)
-    else:
-        control.base_stop()
-    if target_y > 5:
-        control.elbow_up(spdy)
-    elif target_y < -5:
-        control.elbow_down(spdy)
-    else:
-        control.elbow_stop()
 
 
 def control_movement():
@@ -89,17 +68,18 @@ def control_movement():
 
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
+    pid = PID(control=c, dt=MVMT_UPDATE_TIME)
 
     while True:
         with face_lock:  # data shared with process()
             x, y, width, height = current_face
-        if x == 0 and y == 0:
+        if x == 0 and y == 0:  # case no face detected
             c.stop()
             c.led_off()
         else:
             print(f"Moving to {x},{y} ({width}, {height})")
-            c.led_on(80)
-            move_control(c, x, y, width, height)
+            c.led_on(40)
+            pid.move_control(x, y, width, height)
         time.sleep(MVMT_UPDATE_TIME)
 
 
@@ -109,25 +89,63 @@ def process():
     served by listener(). Updates current_face global variable.
     """
 
+    def face_coord_ratio_lower_than_threshold(
+        previous_face: tuple, current_face: tuple, threshold: float = 1.3
+    ) -> bool:
+        """
+        Helper function. Designed for the purpose of ignoring face update
+        when coordinates change too dramatically.
+
+        Returns True if face did not move/change more
+        than by the factor of threshold.
+        """
+        current_x = current_face[0]
+        current_y = current_face[1]
+        previous_x = previous_face[0]
+        previous_y = previous_face[1]
+        ratio_x = 1 + abs((current_x - previous_x) / previous_x)
+        ratio_y = 1 + abs((current_y - previous_y) / previous_y)
+        ratio = max(ratio_x, ratio_y)
+        # Empirically 1.3 is the best threshold
+        return ratio < threshold
+
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
+
     while True:
         try:
             face, gesture = data_queue.get(timeout=1)
             window.append(face)
-            if len(window) == WINDOW_SIZE and all(None not in x[:4] for x in window):
-                print(f"Face at: {face}, queue len: {data_queue.qsize()}")
-                (x, y, _, _, width, height) = face
-                with face_lock:  # data shared with control_movement()
-                    current_face = (x, y, width, height)
-            else:
+
+            # only runs face updates when 2 consecutive frames have a face
+            # TODO: this is empirical, maybe find more robust logic
+            if (
+                len(window) == WINDOW_SIZE
+                and all(x is not None for x in window[-1])  # current face/frame
+                and all(x is not None for x in window[-2])  # previous face/frame
+            ):
+                # only runs face updates when faces in 2 consecutive frames
+                # don't differ too much
+                # TODO: this is empirical, maybe find more robust logic
+                if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
+                    print(f"Face at: {face}, queue len: {data_queue.qsize()}")
+                    (x, y, _, _, width, height) = face
+                    with face_lock:  # data shared with control_movement()
+                        current_face = (x, y, width, height)
+            else:  # case face not detected 2 frames in a row
                 with face_lock:
                     current_face = (0, 0, 0, 0)
+
             if gesture:
-                # TODO: add current_gesture global
+                # TODO: add current_gesture global?
                 print(f"Gesture: {gesture}")
+
         except queue.Empty:
             continue
+        except KeyboardInterrupt:
+            from .pid import visualize
+            visualize()
+
 
 def main():
     input_thread = threading.Thread(target=listen, daemon=True)
