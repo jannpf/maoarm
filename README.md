@@ -10,7 +10,7 @@ In 2 separate terminal windows, run the following scripts:
 
 ```sh
 python3 -m cv
-python3 arm/control.py
+python3 -m arm.control
 ```
 
 ## Architecture overview
