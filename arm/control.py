@@ -20,8 +20,19 @@ ARM_ADDRESS = '192.168.4.1'
 MVMT_UPDATE_TIME = 0.015  # how often to check for current coord
 
 data_queue = queue.Queue(maxsize=100)
+
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
+
+"""
+Face has (x, y, w, h) interface in accordance with CV algo, where:
+    x: (float): x coord of the centre of face's bounding box.
+        Lies within [-w/2: w/2] interval, w/2 is on the right
+    y: (float): y coord of the centre of face's bounding box
+        Lies within [-h/2: h/2] interval, h/2 is up (!)
+    w: (float): width of the frame (not the width of the bounding box)
+    h: (float): height of the frame (not the height of the bounding box)
+"""
 current_face = (0, 0, 0, 0)
 
 logging.basicConfig(handlers=[logging.StreamHandler()])
@@ -38,7 +49,7 @@ def listen():
     conn = listener.accept()
     print('connection accepted from', listener.last_accepted)
     while True:
-        msg = conn.recv()
+        msg = conn.recv()  # face and gesture from CV algo
         if msg == 'close':
             conn.close()
             break
@@ -52,13 +63,13 @@ def listen():
 @dataclass
 class PID:
     """
-    A PID controller for smooth robotic arm control
+    A PID controller for smooth robotic arm control.
 
     Attributes:
         control (AngleControl): Interface for controlling the robotic arm's movement.
         dt (float): Time step between control updates.
-        kp, ki, kd: PID gains.
-        min_output, max_output: limits for the speed controller output.
+        kp, ki, kd (float): PID gains.
+        min_output, max_output (int): limits for the speed controller output.
     """
 
     control: AngleControl
@@ -141,6 +152,7 @@ class PID:
             self.control.elbow_down(spdy)
         else:
             self.control.elbow_stop()
+
         # reset shoulder as it tends to move
         self.control.shoulder_to(0, spd=2, acc=2)
 
@@ -159,7 +171,7 @@ def control_movement():
     while True:
         with face_lock:  # data shared with process()
             x, y, width, height = current_face
-        if x == 0 and y == 0:
+        if x == 0 and y == 0:  # case no face detected
             c.stop()
             c.led_off()
         elif c.elbow_breach() or c.base_breach():
@@ -179,19 +191,25 @@ def process():
     served by listener(). Updates current_face global variable.
     """
 
-    def get_face_coord_ratio(previous_frame, current_frame):
+    def face_coord_ratio_lower_than_threshold(
+        previous_face: tuple, current_face: tuple, threshold: float = 1.3
+    ) -> bool:
         """
         Helper function. Designed for the purpose of ignoring face update
-        when coordinates change too dramatically
+        when coordinates change too dramatically.
+
+        Returns True if face did not move/change more
+        than by the factor of threshold.
         """
-        current_x = current_frame[0]
-        current_y = current_frame[1]
-        previous_x = previous_frame[0]
-        previous_y = previous_frame[1]
+        current_x = current_face[0]
+        current_y = current_face[1]
+        previous_x = previous_face[0]
+        previous_y = previous_face[1]
         ratio_x = 1 + abs((current_x - previous_x) / previous_x)
         ratio_y = 1 + abs((current_y - previous_y) / previous_y)
         ratio = max(ratio_x, ratio_y)
-        return ratio
+        # Empirically 1.3 is the best threshold
+        return ratio < threshold
 
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
@@ -201,24 +219,29 @@ def process():
             face, gesture = data_queue.get(timeout=1)
             window.append(face)
 
+            # only runs face updates when 2 consecutive frames have a face
+            # TODO: this is empirical, maybe find more robust logic
             if (
                 len(window) == WINDOW_SIZE
-                and all(x is not None for x in window[-1])  # current face
-                and all(x is not None for x in window[-2])  # previous face
+                and all(x is not None for x in window[-1])  # current face/frame
+                and all(x is not None for x in window[-2])  # previous face/frame
             ):
-                ratio = get_face_coord_ratio(window[-1], window[-2])
-                # 1.3 is empirical
-                if ratio < 1.3:  # if face did not move/change too quickly
+                # only runs face updates when faces in 2 consecutive frames
+                # don't differ too much
+                # TODO: this is empirical, maybe find more robust logic
+                if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
                     print(f"Face at: {face}, queue len: {data_queue.qsize()}")
                     (x, y, _, _, width, height) = face
                     with face_lock:  # data shared with control_movement()
                         current_face = (x, y, width, height)
-            else:
+            else:  # case face not detected 2 frames in a row
                 with face_lock:
                     current_face = (0, 0, 0, 0)
+
             if gesture:
-                # TODO: add current_gesture global
+                # TODO: add current_gesture global?
                 print(f"Gesture: {gesture}")
+
         except queue.Empty:
             continue
 
