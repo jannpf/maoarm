@@ -138,6 +138,8 @@ class PID:
             self.control.elbow_down(spdy)
         else:
             self.control.elbow_stop()
+        # reset shoulder as it tends to move
+        self.control.shoulder_to(0, spd=2, acc=2)
 
 
 def control_movement():
