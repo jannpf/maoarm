@@ -146,6 +146,9 @@ def process():
 
         except queue.Empty:
             continue
+        except KeyboardInterrupt:
+            from .pid import visualize
+            visualize()
 
 
 def main():
