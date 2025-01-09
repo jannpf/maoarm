@@ -136,7 +136,7 @@ class PID:
                 json.dump([entry], f, indent=4)
 
 
-def visualize(file="interim_values.json")
+def visualize(file="interim_values.json"):
     import matplotlib.pyplot as plt
     import json
 

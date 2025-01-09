@@ -43,6 +43,10 @@ class Face:
         else:
             self.x, self.y, self.w, self.h = None, None, None, None
 
+    def __repr__(self):
+        """Calling face should return centered coordinates."""
+        return f"Face center at: {self.x, self.y}; frame dim is {self.frame_width}x{self.frame_height}"
+
     def _to_center_coord(self, lx: float, ly: float, rx: float, ry: float):
         """
         Convert bounding box coordinates to centered coordinates.
