@@ -1,36 +1,13 @@
 import os
 import cv2
 from multiprocessing.connection import Client
-from . import detection
-# CaffeFaces, MediapipeGestures
+from .face import Face
+from . import detection  # CaffeFaces, MediapipeGestures
 
 
-def to_center_coord(x1, y1, x2, y2, width, height):
-    """
-    Convert bounding box coordinates to centered coordinates.
-    Returns:
-        tuple[int, int, int, int, int, int]: A tuple containing:
-            - lx: Center x-coordinate with respect to the frame's center.
-            - ly: Center y-coordinate with respect to the frame's center (inverted).
-            - lw: Width of the bounding box.
-            - lh: Height of the bounding box.
-            - width: The input width of the frame.
-            - height: The input height of the frame.
-    """
-
-    (lx, ly, lw, lh) = (x1, y1, x2-x1, y2-y1)
-
-    # convert the coor so that 0,0 is in the center
-    (lx, ly) = (lx - width/2, ly - height/2)
-
-    # return the middle coordinate of the face
-    (lx, ly) = ((lx+int(lw/2), ly+int(lh/2)))
-
-    return (lx, -ly, lw, lh, width, height)
-
-
-def box_size(x1, y1, x2, y2):
-    return (x2-x1)*(y2-y1)
+def box_size(box: list[int]) -> float:
+    lx, ly, rx, ry = box
+    return (rx - lx) * (ry - ly)
 
 
 # video capture setup
@@ -65,30 +42,32 @@ try:
             print('Failed to capture frame.')
             break
 
-        # Face Detection
-        detections = face_detector.detect(frame, width, height)
+        # Face Detection, boxes with high confidence
+        boxes: list = face_detector.detect(frame)
 
         # draw bounding boxes and get largest face
         faces_sorted = sorted(detections.items(),
                               key=lambda r: box_size(*r[0]))
 
         # draw the bounding boxes for all faces
-        for box, confidence in faces_sorted:
-            x1, y1, x2, y2 = box
-            if confidence > 0.5:
-                # Draw a rectangle around the faces
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.circle(frame, (int((x1+x2)/2), int((y1+y2)/2)),
-                           radius=3, color=(0, 0, 255))
+        for box, confidence in boxes_sorted:
+            lx, ly, rx, ry = box
+            # Draw a rectangle around the faces
+            cv2.rectangle(frame, (lx, ly), (rx, ry), (0, 255, 0), 2)
+            cv2.circle(frame, (int((lx+rx)/2), int((ly+ry)/2)),
+                       radius=3, color=(0, 0, 255))
 
         # send largest face to control process
-        if faces_sorted:
-            face = to_center_coord(*faces_sorted[-1][0], width, height)
+        if boxes_sorted:
+            largest_face_coords = boxes_sorted[-1][0]
+            lflx, lfly, lfrx, lfry = largest_face_coords
+            face = Face(lflx, lfly, lfrx, lfry, width, height)
         else:
-            face = (None, None, None, None, width, height)
+            face = Face(None, None, None, None, width, height)
 
         # recognize gestures
         gestures = gesture_recognizer.detect(frame)
+        # sort by score
         gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:

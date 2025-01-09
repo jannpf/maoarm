@@ -7,9 +7,10 @@ class CaffeFaces(DetectionBase):
     def __init__(self, modelpath, configpath):
         self.net = cv2.dnn.readNetFromCaffe(configpath, modelpath)
 
-    def detect(self, frame, width, height) -> dict:
-        width = int(width)
-        height = int(height)
+    def detect(self, frame) -> list[int]:
+        # TODO: check if works without resizing
+        # width = int(width)
+        # height = int(height)
         h, w = frame.shape[:2]
         resized_frame = cv2.resize(frame, (width, height))
         blob = cv2.dnn.blobFromImage(
