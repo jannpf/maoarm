@@ -7,9 +7,9 @@ import time
 import queue
 import threading
 import logging
+from dataclasses import dataclass, field
 from collections import deque
 from multiprocessing.connection import Listener
-from typing import Optional
 
 from ArmControl import AngleControl
 
@@ -49,39 +49,45 @@ def listen():
     listener.close()
 
 
+@dataclass
 class PID:
-    def __init__(self, control):
-        """
+    """
+    A PID controller for smooth robotic arm control
+
+    Attributes:
+        control (AngleControl): Interface for controlling the robotic arm's movement.
+        dt (float): Time step between control updates.
         kp, ki, kd: PID gains.
-        setpoint:   Desired target (usually 0 for "centered").
-        min_output, max_output: limits for the controller output.
-        """
-        self.kpx = 12
-        self.kpy = 16
-        self.kix = 0.1
-        self.kiy = 0.1
-        self.kdx = 0.1
-        self.kdy = 0.1
-        self.control = control
+        min_output, max_output: limits for the speed controller output.
+    """
 
-        self.min_output_x = 4
-        self.max_output_x = 20
-        self.min_output_y = 2
-        self.max_output_y = 20
+    control: AngleControl
+    dt: float
 
-        # Internal variables
-        self.error_sum_x = 0
-        self.error_sum_y = 0
-        self.last_error_x = 0
-        self.last_error_y = 0
-        self.dt = MVMT_UPDATE_TIME
+    kpx: float = 80.0
+    kpy: float = 16.0
+    kix: float = 0.1
+    kiy: float = 0.1
+    kdx: float = 0.5
+    kdy: float = 0.1
+
+    min_output_x: int = 10
+    max_output_x: int = 30
+    min_output_y: int = 2
+    max_output_y: int = 20
+
+    # Internal variables
+    error_sum_x: float = field(default=0.0, init=False)
+    error_sum_y: float = field(default=0.0, init=False)
+    last_error_x: float = field(default=0.0, init=False)
+    last_error_y: float = field(default=0.0, init=False)
 
     def move_control(
         self,
-        target_x,
-        target_y,
-        width,
-        height,
+        target_x: float,
+        target_y: float,
+        width: float,
+        height: float,
     ):
         """
         Moves the robotic arm in the direction of the specified coordinates
@@ -95,7 +101,6 @@ class PID:
             target_y: Target y-coordinate relative to the frame's center.
             width: Width of the frame/image.
             height: Height of the frame/image.
-            last_face (tuple): (x, y, w, h) for face position at prev time step.
         """
         error_x = abs(target_x / (width / 2))
         error_y = abs(target_y / (height / 2))
@@ -119,8 +124,6 @@ class PID:
         # PID output
         control_x = p_x + i_x + d_x
         control_y = p_y + i_y + d_y
-        print(f"{control_x=}")
-        print(f"{control_y=}")
 
         # np.clip from min to max
         spdx = min(max(int(control_x), self.min_output_x), self.max_output_x)
@@ -151,7 +154,7 @@ def control_movement():
 
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
-    pid = PID(control=c)
+    pid = PID(control=c, dt=MVMT_UPDATE_TIME)
 
     while True:
         with face_lock:  # data shared with process()
@@ -165,7 +168,7 @@ def control_movement():
             c.led_off()
         else:
             print(f"Moving to {x},{y} ({width}, {height})")
-            c.led_on(80)
+            c.led_on(40)
             pid.move_control(x, y, width, height)
         time.sleep(MVMT_UPDATE_TIME)
 
