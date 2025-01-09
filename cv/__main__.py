@@ -46,11 +46,11 @@ try:
         boxes: list = face_detector.detect(frame)
 
         # draw bounding boxes and get largest face
-        faces_sorted = sorted(detections.items(),
-                              key=lambda r: box_size(*r[0]))
+        # largest box will be last
+        boxes_sorted: list = sorted(boxes, key=box_size)
 
         # draw the bounding boxes for all faces
-        for box, confidence in boxes_sorted:
+        for box in boxes_sorted:
             lx, ly, rx, ry = box
             # Draw a rectangle around the faces
             cv2.rectangle(frame, (lx, ly), (rx, ry), (0, 255, 0), 2)
@@ -59,11 +59,11 @@ try:
 
         # send largest face to control process
         if boxes_sorted:
-            largest_face_coords = boxes_sorted[-1][0]
+            largest_face_coords = boxes_sorted[-1]
             lflx, lfly, lfrx, lfry = largest_face_coords
             face = Face(lflx, lfly, lfrx, lfry, width, height)
         else:
-            face = Face(None, None, None, None, width, height)
+            face = Face.empty()
 
         # recognize gestures
         gestures = gesture_recognizer.detect(frame)

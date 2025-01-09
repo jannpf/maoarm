@@ -2,12 +2,14 @@ from .DetectionBase import DetectionBase
 
 import cv2
 
+CONFIDENCE_THRESHOLD = 0.5
+
 
 class CascadeFaces(DetectionBase):
     def __init__(self, filename):
         self.faceCascade = cv2.CascadeClassifier(filename)
 
-    def detect(self, frame):
+    def detect(self, frame) -> list[int]:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         faces, _, confidence = self.faceCascade.detectMultiScale3(
@@ -19,8 +21,11 @@ class CascadeFaces(DetectionBase):
             outputRejectLevels=True
         )
 
-        result = {}
+        result = []
         for i, (x, y, w, h) in enumerate(faces):
-            result[x, y, x+w, y+h] = confidence[i]
+            if confidence[i] > CONFIDENCE_THRESHOLD:
+                box = [x, y, x + w, y + h]
+                box = list(map(lambda x: int(x), box))
+                result.append(box)
 
         return result

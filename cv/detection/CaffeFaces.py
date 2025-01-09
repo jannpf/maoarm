@@ -2,6 +2,8 @@ from .DetectionBase import DetectionBase
 
 import cv2
 
+CONFIDENCE_THRESHOLD = 0.5
+
 
 class CaffeFaces(DetectionBase):
     def __init__(self, modelpath, configpath):
@@ -12,9 +14,9 @@ class CaffeFaces(DetectionBase):
         # width = int(width)
         # height = int(height)
         h, w = frame.shape[:2]
-        resized_frame = cv2.resize(frame, (width, height))
+        # resized_frame = cv2.resize(frame, (width, height))
         blob = cv2.dnn.blobFromImage(
-            resized_frame,
+            frame,
             scalefactor=1.0,
             size=(300, 300),
             mean=(104.0, 177.0, 123.0),
@@ -25,12 +27,12 @@ class CaffeFaces(DetectionBase):
         self.net.setInput(blob)
         detections = self.net.forward()
 
-        result = {}
+        result = []
         for i in range(detections.shape[2]):
             confidence = detections[0, 0, i, 2]
-            if confidence > 0.5:
+            if confidence > CONFIDENCE_THRESHOLD:
                 box = detections[0, 0, i, 3:7] * [w, h, w, h]
-                (x1,y1,x2,y2) = box.astype("int")
-                result[(x1,y1,x2,y2)] = confidence
+                box = box.astype("int")
+                result.append(box)
 
         return result
