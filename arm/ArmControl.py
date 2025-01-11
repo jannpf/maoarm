@@ -17,9 +17,10 @@ class BasicControl:
         content = response.text
         return content
 
-    def current_position(self):
+    def current_position(self) -> dict:
         command = {"T": 105}
-        return self.run_and_get_response(json.dumps(command))
+        coord_str = self.run_and_get_response(json.dumps(command))
+        return json.loads(coord_str)
 
     def torque_limit():
         raise NotImplementedError()
@@ -97,6 +98,12 @@ class AngleControl(BasicControl):
         command = {"T": 123, "m": 0, "axis": 3, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
 
+    def elbow_breach(self) -> bool:
+        coords = self.current_position()
+        if coords["e"] < 0.28 or coords["b"] > 2.50:
+            return True
+        return False
+
     def shoulder_to(self, rad, spd, acc):
         command = {"T": 101, "joint": 2, "rad": rad, "spd": spd, "acc": acc}
         self.run_and_get_response(json.dumps(command))
@@ -128,6 +135,12 @@ class AngleControl(BasicControl):
     def base_stop(self):
         command = {"T": 123, "m": 0, "axis": 1, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
+
+    def base_breach(self) -> bool:
+        coords = self.current_position()
+        if coords["b"] < -3.14 or coords["b"] > 3.14:
+            return True
+        return False
 
     def stop(self):
         self.base_stop()

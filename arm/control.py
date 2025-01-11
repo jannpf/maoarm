@@ -96,6 +96,10 @@ def control_movement():
         if x == 0 and y == 0:
             c.stop()
             c.led_off()
+        elif c.elbow_breach() or c.base_breach():
+            c.stop()
+            c.to_initial_position()
+            c.led_off()
         else:
             print(f"Moving to {x},{y} ({width}, {height})")
             c.led_on(80)
