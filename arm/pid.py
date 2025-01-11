@@ -16,12 +16,11 @@ class PID:
     """
 
     control: AngleControl
-    dt: float
 
-    kpx: float = 80.0
-    kpy: float = 16.0
-    kix: float = 0.1
-    kiy: float = 0.1
+    kpx: float = 60.0
+    kpy: float = 12.0
+    kix: float = 0.0
+    kiy: float = 0.0
     kdx: float = 0.5
     kdy: float = 0.1
 
@@ -38,6 +37,7 @@ class PID:
 
     interim_values: list = field(default_factory=list, init=False)
     start_time = time()
+    previous_time = 0
 
     def move_control(
         self,
@@ -60,7 +60,8 @@ class PID:
             height: Height of the frame/image.
         """
         current_time = time() - self.start_time
-        error_x = abs(target_x / (width / 2))
+        self.dt: float = current_time - self.previous_time
+        error_x = abs(target_x / (width / 2))  # not nice to take abs
         error_y = abs(target_y / (height / 2))
 
         # Proportional term
@@ -69,7 +70,7 @@ class PID:
 
         # Integral term
         self.error_sum_x += error_x * self.dt
-        self.error_sum_x += error_x * self.dt
+        self.error_sum_y += error_y * self.dt
         i_x = self.error_sum_x * self.kix
         i_y = self.error_sum_y * self.kiy
 

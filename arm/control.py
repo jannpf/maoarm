@@ -68,7 +68,7 @@ def control_movement():
 
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
-    pid = PID(control=c, dt=MVMT_UPDATE_TIME)
+    pid = PID(control=c)
 
     while True:
         with face_lock:  # data shared with process()
@@ -147,11 +147,21 @@ def process():
         except queue.Empty:
             continue
         except KeyboardInterrupt:
+            c = AngleControl(ARM_ADDRESS)
+            c.to_initial_position()
+            with face_lock:
+                current_face = Face.empty()
             from .pid import visualize
             visualize()
 
 
 def main():
+    import os
+    try:
+        os.remove("interim_values.json")
+    except:
+        pass
+
     input_thread = threading.Thread(target=listen, daemon=True)
     input_thread.start()
     control_thread = threading.Thread(target=control_movement, daemon=True)
