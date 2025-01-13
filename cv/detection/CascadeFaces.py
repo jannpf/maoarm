@@ -9,7 +9,7 @@ class CascadeFaces(DetectionBase):
     def __init__(self, filename):
         self.faceCascade = cv2.CascadeClassifier(filename)
 
-    def detect(self, frame) -> list[int]:
+    def detect(self, frame) -> list[tuple]:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         faces, _, confidence = self.faceCascade.detectMultiScale3(
@@ -24,8 +24,8 @@ class CascadeFaces(DetectionBase):
         result = []
         for i, (x, y, w, h) in enumerate(faces):
             if confidence[i] > CONFIDENCE_THRESHOLD:
-                box = [x, y, x + w, y + h]
-                box = list(map(lambda x: int(x), box))
-                result.append(box)
+                box = (x, y, x + w, y + h)
+                box_int = tuple(map(lambda x: int(x), box))
+                result.append(box_int)
 
         return result

@@ -5,7 +5,7 @@ from .face import Face
 from . import detection  # CaffeFaces, MediapipeGestures
 
 
-def box_size(box: list[int]) -> float:
+def box_size(box: tuple[int, int, int, int]) -> float:
     lx, ly, rx, ry = box
     return (rx - lx) * (ry - ly)
 

@@ -9,7 +9,7 @@ class CaffeFaces(DetectionBase):
     def __init__(self, modelpath, configpath):
         self.net = cv2.dnn.readNetFromCaffe(configpath, modelpath)
 
-    def detect(self, frame) -> list[int]:
+    def detect(self, frame) -> list[tuple]:
         # TODO: check if works without resizing
         # width = int(width)
         # height = int(height)
