@@ -3,6 +3,7 @@ Robotic arm control module integrating face and gesture detection data.
 Listens for detection data, processes it, and controls arm movement and LED status.
 """
 
+import os
 import time
 import queue
 import threading
@@ -243,20 +244,12 @@ def process():
 
         except queue.Empty:
             continue
-        except KeyboardInterrupt:
-            c = AngleControl(ARM_ADDRESS)
-            c.to_initial_position()
-            with face_lock:
-                current_face = Face.empty()
-            from .pid import visualize
-            visualize()
 
 
 def main():
-    import os
     try:
         os.remove("interim_values.json")
-    except:
+    except FileNotFoundError:
         pass
 
     input_thread = threading.Thread(target=listen, daemon=True)

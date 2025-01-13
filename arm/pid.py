@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from arm import AngleControl
 from time import time
+import matplotlib.pyplot as plt
+import json
 
 
 @dataclass
@@ -137,10 +139,7 @@ class PID:
                 json.dump([entry], f, indent=4)
 
 
-def visualize(file="interim_values.json")
-    import matplotlib.pyplot as plt
-    import json
-
+def visualize(file="interim_values.json"):
     # Load data from file
     with open(file, 'r') as f:
         data = json.load(f)
