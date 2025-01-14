@@ -2,7 +2,6 @@ import random
 import math
 from collections import deque
 
-import matplotlib.axes
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
