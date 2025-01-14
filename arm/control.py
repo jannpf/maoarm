@@ -24,12 +24,14 @@ CHARACTER_FILE = 'spot.json'
 
 data_queue = queue.Queue(maxsize=100)
 
+current_face = Face.empty()
+current_gesture = None
+current_mood = None
+
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
 gesture_lock = threading.Lock()
-
-current_face = Face.empty()
-current_gesture = None
+mood_lock = threading.Lock()
 
 logging.basicConfig(handlers=[logging.StreamHandler()])
 logger = logging.getLogger()
@@ -55,6 +57,7 @@ def mood_control():
     )
 
     last_gesture = None
+    global mood
 
     while True:
         print("iterating mood.")
@@ -70,6 +73,17 @@ def mood_control():
             if detected_gesture in gesture_impact:
                 v_offset, a_offset = gesture_impact[detected_gesture]
                 cat.override_mood(cat.valence+v_offset, cat.arousal+a_offset)
+
+        with mood_lock:
+            if cat.valence > 0:
+                if cat.arousal > 0:
+                    mood = "EXCITED"
+                else:
+                    mood = "RELAXED"
+            elif cat.arousal > 0:
+                mood = "ANGRY"
+            else:
+                mood = "DEPRESSED"
 
         time.sleep(MOOD_UPDATE_TIME)
 
@@ -107,6 +121,9 @@ def control_movement():
     pid = PID(control=c)
 
     while True:
+        with mood_lock:
+            mood = current_mood
+
         with face_lock:  # data shared with process()
             x, y, frame_width, frame_height = (
                 current_face.x or 0,
@@ -122,9 +139,21 @@ def control_movement():
             c.to_initial_position()
             c.led_off()
         else:
-            print(f"Moving to {x},{y}; ({frame_width}x{frame_height})")
-            c.led_on(40)
-            pid.move_control(x, y, frame_width, frame_height)
+            if mood == "EXCITED":
+                print(f"Moving to {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(40)
+                pid.move_control(x, y, frame_width, frame_height)
+            if mood == "RELAXED":
+                print(f"Relaxed movement to {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(20)
+                pid.move_control(x*0.8, y*0.8, frame_width, frame_height)
+            if mood == "ANGRY":
+                print(f"Moving away from {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(100)
+                pid.move_control(-x, -y, frame_width, frame_height)
+            if mood == "DEPRESSED":
+                print(f"Too depressed to move to {x},{y}; ({frame_width}x{frame_height})")
+
         time.sleep(MVMT_UPDATE_TIME)
 
 
