@@ -4,12 +4,12 @@ import math
 import sys
 import select
 import re
-from cat import Cat
+from arm.cat import Cat
 
 import matplotlib.pyplot as plt
 
-gaussians = json.load(open('spot.json', 'r'))
-
+cat_characteristics = json.load(open('spot.json', 'r'))
+gaussians = cat_characteristics['gaussians']
 
 def parse_input():
     rlist, _, _ = select.select([sys.stdin], [], [], 0.0)
