@@ -60,7 +60,6 @@ def mood_control():
     global mood
 
     while True:
-        print("iterating mood.")
         cat.mood_iteration()
 
         # check for gestures

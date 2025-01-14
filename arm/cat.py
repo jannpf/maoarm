@@ -131,6 +131,7 @@ class Cat:
             if self.plot:
                 self.mood_trace.append(self.mood)
                 self.scatter_plot.set_offsets(self.mood_trace)
+                plt.pause(0.005)
         else:
             # reject
             pass
@@ -152,6 +153,7 @@ class Cat:
             self.plot_arrow(self.mood_trace[-1], self.mood)
             self.mood_trace.append(self.mood)
             self.scatter_plot.set_offsets(self.mood_trace)
+            plt.pause(0.005)
 
     @staticmethod
     def plot_gaussian(ax: Axes, mx: float, my: float, sx: float, sy: float, rho: float):
