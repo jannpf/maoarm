@@ -46,7 +46,7 @@ try:
         ret, frame = video_capture.read()
         if not ret:
             print('Failed to capture frame.')
-            break
+            continue
 
         # Face Detection, boxes with high confidence
         boxes: list = face_detector.detect(frame)

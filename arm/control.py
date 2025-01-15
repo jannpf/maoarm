@@ -122,6 +122,7 @@ def control_movement():
     pid = PID(control=c)
 
     #TODO: Implement a timer to continue when stuck
+    last_homing = time.time()
     
     while True:
         with mood_lock:
@@ -142,6 +143,7 @@ def control_movement():
             c.to_initial_position()
             c.led_off()
         else:
+            last_homing = time.time()
             if mood == "EXCITED":
                 print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
                 c.led_on(40)
@@ -156,7 +158,10 @@ def control_movement():
                 pid.move_control(-x, -y, frame_width, frame_height)
             if mood == "DEPRESSED":
                 print(f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})")
-
+        if time.time() - last_homing > 30:
+            c.to_initial_position()
+            time.sleep(5)
+            last_homing = time.time()
         time.sleep(MVMT_UPDATE_TIME)
 
 
