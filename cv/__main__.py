@@ -1,6 +1,11 @@
 import os
-import cv2
+import time
 from multiprocessing.connection import Client
+
+import cv2
+import pyrealsense2 as rs
+import numpy as np
+
 from .face import Face
 from . import detection  # CaffeFaces, MediapipeGestures
 
@@ -11,13 +16,20 @@ def box_size(box: tuple[int, int, int, int]) -> float:
 
 
 # video capture setup
-video_capture = cv2.VideoCapture(0)
-video_capture.set(cv2.CAP_PROP_FOURCC,
-                  cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-video_capture.isOpened()
+# video_capture = cv2.VideoCapture(-1)
+# video_capture.set(cv2.CAP_PROP_FOURCC,
+#                   cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+# video_capture.isOpened()
 
-width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
-height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+# width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+# height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+pipeline = rs.pipeline()
+config = rs.config()
+
+config.disable_all_streams()
+config.enable_stream(rs.stream.color,0, rs.format.rgb8, 15)
+pipeline.start()
 
 # IP address to communicate data with
 conn = Client(('localhost', 6282))  # port in accordance with arm/control.py
@@ -43,11 +55,17 @@ no_gesture_counter = 0
 try:
     while True:
         # Capture frame-by-frame
-        ret, frame = video_capture.read()
-        if not ret:
-            print('Failed to capture frame.')
-            break
+        # ret, frame = video_capture.read()
+        # if not ret:
+        #     print('Failed to capture frame.')
+        #     break
 
+        frames = pipeline.wait_for_frames()
+        frame = frames.get_color_frame()
+        w, h = frame.get_width(), frame.get_height()# 640,480
+        frame = np.asanyarray(frame.get_data())
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        
         # Face Detection, boxes with high confidence
         boxes: list = face_detector.detect(frame)
 
@@ -117,8 +135,10 @@ try:
             break
 
     # When everything is done, release the capture
-    video_capture.release()
+    # video_capture.release()
     cv2.destroyAllWindows()
+except Exception as e:
+    print(e)
 finally:
     conn.send('close')
     conn.close()
