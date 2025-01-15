@@ -72,7 +72,7 @@ def mood_control():
             last_gesture = detected_gesture
             if detected_gesture in gesture_impact:
                 v_offset, a_offset = gesture_impact[detected_gesture]
-                cat.override_mood(v_offset, a_offset)
+                cat.override_mood(v_offset, a_offset, detected_gesture)
 
         with mood_lock:
             if cat.valence > 0:

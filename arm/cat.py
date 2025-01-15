@@ -136,7 +136,7 @@ class Cat:
             # reject
             pass
 
-    def override_mood(self, v_offset: float, a_offset: float) -> None:
+    def override_mood(self, v_offset: float, a_offset: float, gesture: str) -> None:
         """
         Use this function to update the mood of the cat based on vector addition. 
         If plotting is enabled, the override will be displayed as a red arrow, 
@@ -155,7 +155,7 @@ class Cat:
 
         if self.plot:
             if len(self.mood_trace) > 0:
-                self.plot_arrow(self.mood_trace[-1], self.mood)
+                self.plot_arrow(self.mood_trace[-1], self.mood, gesture)
             self.mood_trace.append(self.mood)
             self.update_mood_trace_plot()
 
@@ -178,12 +178,12 @@ class Cat:
             )
 
             new_arrows = []
-            for arrow, end in self.arrows:
+            for arrow, label, end in self.arrows:
                 if end in self.mood_trace:
-                    new_arrows.append((arrow, end)) 
+                    new_arrows.append((arrow, label, end))
                 else:
-                    arrow.remove() 
-                    
+                    arrow.remove()
+                    label.remove()
             self.arrows = new_arrows
 
             self.fig.canvas.draw()
@@ -231,7 +231,15 @@ class Cat:
             )
             ax.add_patch(ellipse)
 
-    def plot_arrow(self, start: tuple, end: tuple):
+    def plot_arrow(self, start: tuple, end: tuple, gesture: str):
+        """
+        Plot an arrow between start and end points, labeling it with the gesture name.
+    
+        Args:
+            start (tuple): Starting coordinates of the arrow (x, y).
+            end (tuple): Ending coordinates of the arrow (x, y).
+            gesture (str): Name of the gesture to display on the arrow.
+        """
         arrow = self.ax.arrow(
             start[0],
             start[1],
@@ -246,7 +254,23 @@ class Cat:
             alpha=0.8
         )
 
-        self.arrows.append((arrow, end))
+        midpoint_x = (start[0] + end[0]) / 2
+        midpoint_y = (start[1] + end[1]) / 2
+
+        label_offset_x = 0.02 * (end[0] - start[0])
+        label_offset_y = 0.02 * (end[1] - start[1])
+
+        label = self.ax.text(
+            midpoint_x + label_offset_x,
+            midpoint_y + label_offset_y,
+            gesture,
+            fontsize=9,
+            color='black',
+            ha='center',  # Horizontal alignment
+            va='center',  # Vertical alignment
+            alpha=0.8  # Slight transparency for the label
+        )   
+        self.arrows.append((arrow, label, end))
         self.fig.canvas.draw()
         plt.pause(0.01)
 
