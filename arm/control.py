@@ -57,7 +57,7 @@ def mood_control():
     )
 
     last_gesture = None
-    global mood
+    global current_mood
 
     while True:
         cat.mood_iteration()
@@ -77,14 +77,15 @@ def mood_control():
         with mood_lock:
             if cat.valence > 0:
                 if cat.arousal > 0:
-                    mood = "EXCITED"
+                    current_mood = "EXCITED"
                 else:
-                    mood = "RELAXED"
+                    current_mood = "RELAXED"
             elif cat.arousal > 0:
-                mood = "ANGRY"
+                current_mood = "ANGRY"
             else:
-                mood = "DEPRESSED"
-
+                current_mood = "DEPRESSED"
+        
+        cat.ax.set_title(f"My Mood: {current_mood}")
         time.sleep(MOOD_UPDATE_TIME)
 
 
@@ -120,6 +121,8 @@ def control_movement():
     c.to_initial_position()
     pid = PID(control=c)
 
+    #TODO: Implement a timer to continue when stuck
+    
     while True:
         with mood_lock:
             mood = current_mood
@@ -140,19 +143,19 @@ def control_movement():
             c.led_off()
         else:
             if mood == "EXCITED":
-                print(f"Moving to {x},{y}; ({frame_width}x{frame_height})")
+                print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
                 c.led_on(40)
                 pid.move_control(x, y, frame_width, frame_height)
             if mood == "RELAXED":
-                print(f"Relaxed movement to {x},{y}; ({frame_width}x{frame_height})")
+                print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
                 c.led_on(20)
                 pid.move_control(x*0.8, y*0.8, frame_width, frame_height)
             if mood == "ANGRY":
-                print(f"Moving away from {x},{y}; ({frame_width}x{frame_height})")
+                print(f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})")
                 c.led_on(100)
                 pid.move_control(-x, -y, frame_width, frame_height)
             if mood == "DEPRESSED":
-                print(f"Too depressed to move to {x},{y}; ({frame_width}x{frame_height})")
+                print(f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})")
 
         time.sleep(MVMT_UPDATE_TIME)
 
@@ -207,7 +210,7 @@ def process():
                 # don't differ too much
                 # TODO: this is empirical, maybe find more robust logic
                 if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
-                    print(f"{face}, queue len: {data_queue.qsize()}")
+                    # print(f"{face}, queue len: {data_queue.qsize()}")
                     with face_lock:  # data shared with control_movement()
                         current_face = face
             else:  # case face not detected 2 frames in a row
