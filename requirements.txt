@@ -2,3 +2,4 @@ opencv-python
 mediapipe
 matplotlib
 requests
+pyrealsense2
