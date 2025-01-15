@@ -6,10 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.axes import Axes
-
+from matplotlib.colors import to_rgba
 
 class Cat:
-    def __init__(self, gaussians: list[dict], valence: float = 0.0, arousal: float = 0.0, proposal_sigma: float = 0.2, plot: bool = False, maxtracelen: int = 1000):
+    def __init__(self, gaussians: list[dict], valence: float = 0.0, arousal: float = 0.0, proposal_sigma: float = 0.2, plot: bool = False, maxtracelen: int = 10):
         """
         Initializes a new Cat with the given character profile.
 
@@ -27,6 +27,7 @@ class Cat:
         self.gaussians = gaussians
         self.plot = plot
         self.mood_trace = None
+        self.arrows = []
 
         if plot:
             self.initialize_plotting()
@@ -130,30 +131,64 @@ class Cat:
             self.arousal = arousal_new
             if self.plot:
                 self.mood_trace.append(self.mood)
-                self.scatter_plot.set_offsets(self.mood_trace)
-                plt.pause(0.005)
+                self.update_mood_trace_plot()
         else:
             # reject
             pass
 
-    def override_mood(self, v_new: float, a_new: float) -> None:
+    def override_mood(self, v_offset: float, a_offset: float) -> None:
         """
-        Use this function to update the mood of the cat. 
-        If plotting is enabled, the override will be displayed as red arrow 
-        and the trace of the visualization updated.
+        Use this function to update the mood of the cat based on vector addition. 
+        If plotting is enabled, the override will be displayed as a red arrow, 
+        and the trace of the visualization will be updated.
 
         Args:
-            v_new:    The new valence value to use
-            a_new:    The new arousal value to use
+            v_offset:   The valence offset to add to the current mood.
+            a_offset:   The arousal offset to add to the current mood.
         """
-        self.valence = max(-1, min(1, v_new))
-        self.arousal = max(-1, min(1, a_new))
+        print(f"Override Mood Called with Offsets: v_offset={v_offset}, a_offset={a_offset}")
+        new_valence = max(-1, min(1, self.valence + v_offset))
+        new_arousal = max(-1, min(1, self.arousal + a_offset))
+
+        self.valence = new_valence
+        self.arousal = new_arousal
 
         if self.plot:
-            self.plot_arrow(self.mood_trace[-1], self.mood)
+            if len(self.mood_trace) > 0:
+                self.plot_arrow(self.mood_trace[-1], self.mood)
             self.mood_trace.append(self.mood)
-            self.scatter_plot.set_offsets(self.mood_trace)
-            plt.pause(0.005)
+            self.update_mood_trace_plot()
+
+    def update_mood_trace_plot(self):
+        """
+        Update the mood trace plot with fading effect for older points.
+        Remove arrows when their corresponding mood points fade.
+        """
+        if len(self.mood_trace) > 0:
+            alphas = np.linspace(0.1, 1.0, len(self.mood_trace))  # Fading from light to solid
+            colors = [to_rgba("blue", alpha) for alpha in alphas]
+            
+            x_vals, y_vals = zip(*self.mood_trace)
+
+            if self.scatter_plot:
+                self.scatter_plot.remove()
+
+            self.scatter_plot = self.ax.scatter(
+                x_vals, y_vals, c=colors, edgecolors='none', s=50
+            )
+
+            new_arrows = []
+            for arrow, end in self.arrows:
+                if end in self.mood_trace:
+                    new_arrows.append((arrow, end)) 
+                else:
+                    arrow.remove() 
+                    
+            self.arrows = new_arrows
+
+            self.fig.canvas.draw()
+            plt.pause(0.01)
+
 
     @staticmethod
     def plot_gaussian(ax: Axes, mx: float, my: float, sx: float, sy: float, rho: float):
@@ -197,20 +232,26 @@ class Cat:
             ax.add_patch(ellipse)
 
     def plot_arrow(self, start: tuple, end: tuple):
-        self.ax.arrow(
+        arrow = self.ax.arrow(
             start[0],
             start[1],
-            end[0]-start[0],
-            end[1]-start[1],
+            end[0] - start[0],
+            end[1] - start[1],
             shape='full',
-            color='r',
-            head_length=0.05,
-            head_width=0.05,
-            length_includes_head=True
+            color='red',
+            head_length=0.03,
+            head_width=0.02,
+            linewidth=1.5,
+            length_includes_head=True,
+            alpha=0.8
         )
 
+        self.arrows.append((arrow, end))
+        self.fig.canvas.draw()
+        plt.pause(0.01)
+
+
     def initialize_plotting(self):
-        # initialize plotting
         plt.ion()
         self.fig, self.ax = plt.subplots(figsize=(6, 6))
         self.ax.set_xlim(-1, 1)
@@ -226,4 +267,4 @@ class Cat:
             rho = g['rho']
             self.plot_gaussian(self.ax, mx, my, sx, sy, rho)
 
-        self.scatter_plot = self.ax.scatter([], [], c='blue', alpha=0.5)
+        self.scatter_plot = self.ax.scatter([], [], c=[], facecolors=[], edgecolors='none', alpha=0.5)

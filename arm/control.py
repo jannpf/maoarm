@@ -20,7 +20,7 @@ IPC_PORT = 6282
 ARM_ADDRESS = '192.168.4.1'
 MVMT_UPDATE_TIME = 0.015  # how often to check for current coord in seconds
 MOOD_UPDATE_TIME = 1  # in seconds
-CHARACTER_FILE = 'spot.json'
+CHARACTER_FILE = 'arm/spot.json'
 
 data_queue = queue.Queue(maxsize=100)
 
@@ -53,7 +53,7 @@ def mood_control():
         arousal=0.0,
         proposal_sigma=0.2,
         plot=True,
-        maxtracelen=1000,
+        maxtracelen=15,
     )
 
     last_gesture = None
@@ -64,14 +64,15 @@ def mood_control():
 
         # check for gestures
         with gesture_lock:
-            detected_gesture = current_gesture
+            if current_gesture != "None":
+                detected_gesture = current_gesture
 
         # only recognize one gesture at a time
         if detected_gesture != last_gesture:
             last_gesture = detected_gesture
             if detected_gesture in gesture_impact:
                 v_offset, a_offset = gesture_impact[detected_gesture]
-                cat.override_mood(cat.valence+v_offset, cat.arousal+a_offset)
+                cat.override_mood(v_offset, a_offset)
 
         with mood_lock:
             if cat.valence > 0:
