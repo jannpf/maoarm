@@ -9,8 +9,8 @@ Controlling the movement of the robotic arm RoArm-M2-S. In a cat-like way (whate
 In 2 separate terminal windows, run the following scripts:
 
 ```sh
-python3 -m cv
 python3 -m arm.control
+python3 -m cv
 ```
 
 ## Architecture overview
@@ -18,3 +18,5 @@ python3 -m arm.control
 
 ![image](https://github.com/user-attachments/assets/ceab060d-1bd5-4293-92a9-ca9c5a550c49)
 
+## Mood Impact of Gestures
+![image](mood_impact_gestures.png)

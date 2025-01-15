@@ -90,6 +90,6 @@ class MediapipeGestures(DetectionBase):
                 self.mp_draw.draw_landmarks(frame, hand_landmarks,
                                             self.mp_hands.HAND_CONNECTIONS)
                 if self.detect_middle_finger(hand_landmarks):
-                    result["Middle Finger"] = 1.0
+                    result["middle_finger"] = 1.0
 
         return result

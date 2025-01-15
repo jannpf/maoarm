@@ -34,6 +34,12 @@ face_detector = detection.CaffeFaces(face_model_file, face_config_file)
 modelpath = os.path.join(base_dir, 'models', 'gesture_recognizer.task')
 gesture_recognizer = detection.MediapipeGestures(modelpath)
 
+GESTURE_CONFIRMATION_THRESHOLD = 5
+GESTURE_TIMEOUT_FRAMES = 10
+gesture_buffer = {}
+current_confirmed_gesture = None
+no_gesture_counter = 0
+
 try:
     while True:
         # Capture frame-by-frame
@@ -65,21 +71,44 @@ try:
         else:
             face = Face.empty()
 
-        # recognize gestures
+# recognize gestures------------------------------------------------------------------------
+
         gestures = gesture_recognizer.detect(frame)
-        # sort by score
         gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
-            gesture = gestures_sorted[-1][0]
-            cv2.putText(frame, gesture, (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            detected_gesture  = gestures_sorted[-1][0]
+            no_gesture_counter = 0  # Reset counter since a gesture is detected
         else:
-            gesture = None
+            detected_gesture  = None
+            no_gesture_counter += 1
+
+        # Update gesture buffer
+        if detected_gesture:
+            if detected_gesture in gesture_buffer:
+                gesture_buffer[detected_gesture] += 1
+            else:
+                gesture_buffer = {detected_gesture: 1}  # Reset buffer for new gesture
+        else:
+            gesture_buffer = {}
+
+        # Confirm a gesture if it exceeds the threshold
+        for gesture, count in gesture_buffer.items():
+            if count >= GESTURE_CONFIRMATION_THRESHOLD:
+                current_confirmed_gesture = gesture
+                break
+        
+        if no_gesture_counter >= GESTURE_TIMEOUT_FRAMES:
+            current_confirmed_gesture = None
+
+        # Display the confirmed gesture
+        if current_confirmed_gesture:
+            cv2.putText(frame, current_confirmed_gesture, (50, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)            
 
         # send results
-        print((face, gesture))
-        conn.send((face, gesture))
+        print((face, current_confirmed_gesture))
+        conn.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow('Video', frame)

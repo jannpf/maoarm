@@ -5,30 +5,88 @@ Listens for detection data, processes it, and controls arm movement and LED stat
 
 import os
 import time
+import json
 import queue
 import threading
 import logging
 from collections import deque
 from multiprocessing.connection import Listener
+
 from cv.face import Face
-
-from arm import AngleControl, PID
-
+from arm import AngleControl, PID, Cat
 
 WINDOW_SIZE = 5
 IPC_PORT = 6282
 ARM_ADDRESS = '192.168.4.1'
-MVMT_UPDATE_TIME = 0.015  # how often to check for current coord
+MVMT_UPDATE_TIME = 0.015  # how often to check for current coord in seconds
+MOOD_UPDATE_TIME = 1  # in seconds
+CHARACTER_FILE = 'arm/spot.json'
 
 data_queue = queue.Queue(maxsize=100)
 
+current_face = Face.empty()
+current_gesture = None
+current_mood = None
+
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
-
-current_face = Face.empty()
+gesture_lock = threading.Lock()
+mood_lock = threading.Lock()
 
 logging.basicConfig(handlers=[logging.StreamHandler()])
 logger = logging.getLogger()
+
+
+def mood_control():
+    """
+    Controls the cat behaviour, including random mood drift and
+    mood changes based on interaction through gestures
+    """
+    # cat characteristics
+    cat_profile = json.load(open(CHARACTER_FILE, 'r'))
+    character_gaussians = cat_profile["gaussians"]
+    gesture_impact = cat_profile["gesture_impact"]
+
+    cat = Cat(
+        gaussians=character_gaussians,
+        valence=0.0,
+        arousal=0.0,
+        proposal_sigma=0.2,
+        plot=True,
+        maxtracelen=15,
+    )
+
+    last_gesture = None
+    global current_mood
+
+    while True:
+        cat.mood_iteration()
+
+        # check for gestures
+        with gesture_lock:
+            if current_gesture != "None":
+                detected_gesture = current_gesture
+
+        # only recognize one gesture at a time
+        if detected_gesture != last_gesture:
+            last_gesture = detected_gesture
+            if detected_gesture in gesture_impact:
+                v_offset, a_offset = gesture_impact[detected_gesture]
+                cat.override_mood(v_offset, a_offset, detected_gesture)
+
+        with mood_lock:
+            if cat.valence > 0:
+                if cat.arousal > 0:
+                    current_mood = "EXCITED"
+                else:
+                    current_mood = "RELAXED"
+            elif cat.arousal > 0:
+                current_mood = "ANGRY"
+            else:
+                current_mood = "DEPRESSED"
+        
+        cat.ax.set_title(f"My Mood: {current_mood}")
+        time.sleep(MOOD_UPDATE_TIME)
 
 
 def listen():
@@ -52,103 +110,6 @@ def listen():
     listener.close()
 
 
-@dataclass
-class PID:
-    """
-    A PID controller for smooth robotic arm control.
-
-    Attributes:
-        control (AngleControl): Interface for controlling the robotic arm's movement.
-        dt (float): Time step between control updates.
-        kp, ki, kd (float): PID gains.
-        min_output, max_output (int): limits for the speed controller output.
-    """
-
-    control: AngleControl
-    dt: float
-
-    kpx: float = 80.0
-    kpy: float = 16.0
-    kix: float = 0.1
-    kiy: float = 0.1
-    kdx: float = 0.5
-    kdy: float = 0.1
-
-    min_output_x: int = 10
-    max_output_x: int = 30
-    min_output_y: int = 2
-    max_output_y: int = 20
-
-    # Internal variables
-    error_sum_x: float = field(default=0.0, init=False)
-    error_sum_y: float = field(default=0.0, init=False)
-    last_error_x: float = field(default=0.0, init=False)
-    last_error_y: float = field(default=0.0, init=False)
-
-    def move_control(
-        self,
-        target_x: float,
-        target_y: float,
-        width: float,
-        height: float,
-    ):
-        """
-        Moves the robotic arm in the direction of the specified coordinates
-        (e.g. the central point of the detected face).
-        Adjusts movement speed proportionally based on distance from the target
-        to ensure smooth control.
-
-        Args:
-            control (AngleControl): The control interface for the robotic arm.
-            target_x: Target x-coordinate relative to the frame's center.
-            target_y: Target y-coordinate relative to the frame's center.
-            width: Width of the frame/image.
-            height: Height of the frame/image.
-        """
-        error_x = abs(target_x / (width / 2))
-        error_y = abs(target_y / (height / 2))
-
-        # Proportional term
-        p_x = self.kpx * error_x
-        p_y = self.kpy * error_y
-
-        # Integral term
-        self.error_sum_x += error_x * self.dt
-        self.error_sum_x += error_x * self.dt
-        i_x = self.error_sum_x * self.kix
-        i_y = self.error_sum_y * self.kiy
-
-        # Derivative term
-        d_x = self.kdx * (error_x - self.last_error_x) / self.dt
-        d_y = self.kdy * (error_y - self.last_error_y) / self.dt
-        self.last_error_x = error_x
-        self.last_error_y = error_x
-
-        # PID output
-        control_x = p_x + i_x + d_x
-        control_y = p_y + i_y + d_y
-
-        # np.clip from min to max
-        spdx = min(max(int(control_x), self.min_output_x), self.max_output_x)
-        spdy = min(max(int(control_y), self.min_output_y), self.max_output_y)
-
-        if target_x > width / 20:
-            self.control.base_cw(spdx)
-        elif target_x < - width / 20:
-            self.control.base_ccw(spdx)
-        else:
-            self.control.base_stop()
-        if target_y > height / 10:
-            self.control.elbow_up(spdy)
-        elif target_y < - height / 10:
-            self.control.elbow_down(spdy)
-        else:
-            self.control.elbow_stop()
-
-        # reset shoulder as it tends to move
-        self.control.shoulder_to(0, spd=2, acc=2)
-
-
 def control_movement():
     """
     Monitors the global current_face coordinates and
@@ -160,7 +121,12 @@ def control_movement():
     c.to_initial_position()
     pid = PID(control=c)
 
+    #TODO: Implement a timer to continue when stuck
+    
     while True:
+        with mood_lock:
+            mood = current_mood
+
         with face_lock:  # data shared with process()
             x, y, frame_width, frame_height = (
                 current_face.x or 0,
@@ -176,9 +142,21 @@ def control_movement():
             c.to_initial_position()
             c.led_off()
         else:
-            print(f"Moving to {x},{y}; ({frame_width}x{frame_height})")
-            c.led_on(40)
-            pid.move_control(x, y, frame_width, frame_height)
+            if mood == "EXCITED":
+                print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(40)
+                pid.move_control(x, y, frame_width, frame_height)
+            if mood == "RELAXED":
+                print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(20)
+                pid.move_control(x*0.8, y*0.8, frame_width, frame_height)
+            if mood == "ANGRY":
+                print(f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})")
+                c.led_on(100)
+                pid.move_control(-x, -y, frame_width, frame_height)
+            if mood == "DEPRESSED":
+                print(f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})")
+
         time.sleep(MVMT_UPDATE_TIME)
 
 
@@ -202,14 +180,17 @@ def process():
         current_y = current_face.y
         previous_x = previous_face.x or 1e-5  # avoid div by zero
         previous_y = previous_face.y or 1e-5
-        ratio_x = 1 + abs((current_x - previous_x) / previous_x)  # type: ignore
-        ratio_y = 1 + abs((current_y - previous_y) / previous_y)  # type: ignore
+        ratio_x = 1 + abs((current_x - previous_x) /
+                          previous_x)  # type: ignore
+        ratio_y = 1 + abs((current_y - previous_y) /
+                          previous_y)  # type: ignore
         ratio = max(ratio_x, ratio_y)
         # Empirically 1.3 is the best threshold
         return ratio < threshold
 
     window = deque(maxlen=WINDOW_SIZE)
     global current_face
+    global current_gesture
     face: Face
     gesture: str
 
@@ -229,7 +210,7 @@ def process():
                 # don't differ too much
                 # TODO: this is empirical, maybe find more robust logic
                 if face_coord_ratio_lower_than_threshold(window[-1], window[-2]):
-                    print(f"{face}, queue len: {data_queue.qsize()}")
+                    # print(f"{face}, queue len: {data_queue.qsize()}")
                     with face_lock:  # data shared with control_movement()
                         current_face = face
             else:  # case face not detected 2 frames in a row
@@ -237,7 +218,8 @@ def process():
                     current_face = Face.empty()
 
             if gesture:
-                # TODO: add current_gesture global?
+                with gesture_lock:
+                    current_gesture = gesture
                 print(f"Gesture: {gesture}")
 
         except queue.Empty:
@@ -254,7 +236,9 @@ def main():
     input_thread.start()
     control_thread = threading.Thread(target=control_movement, daemon=True)
     control_thread.start()
-    process()
+    processing_thread = threading.Thread(target=process, daemon=True)
+    processing_thread.start()
+    mood_control()
 
 
 if __name__ == "__main__":
