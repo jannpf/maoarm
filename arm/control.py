@@ -20,7 +20,8 @@ IPC_PORT = 6282
 ARM_ADDRESS = '192.168.4.1'
 MVMT_UPDATE_TIME = 0.015  # how often to check for current coord in seconds
 MOOD_UPDATE_TIME = 1  # in seconds
-CHARACTER_FILE = 'arm/spot.json'
+MAX_IDLE_TIME = 30  # max time without detection, seconds
+CHARACTER_FILE = 'arm/cat_characters/spot.json'
 
 data_queue = queue.Queue(maxsize=100)
 

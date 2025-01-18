@@ -8,7 +8,7 @@ from arm.cat import Cat
 
 import matplotlib.pyplot as plt
 
-cat_characteristics = json.load(open('spot.json', 'r'))
+cat_characteristics = json.load(open('arm/cat_characters/spot.json', 'r'))
 gaussians = cat_characteristics['gaussians']
 
 def parse_input():
