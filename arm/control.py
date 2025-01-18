@@ -16,11 +16,11 @@ from arm import AngleControl, PID, Cat
 
 WINDOW_SIZE = 5
 IPC_PORT = 6282
-ARM_ADDRESS = '192.168.4.1'
+ARM_ADDRESS = "192.168.4.1"
 MVMT_UPDATE_TIME = 0.015  # how often to check for current coord in seconds
 MOOD_UPDATE_TIME = 1  # in seconds
 MAX_IDLE_TIME = 30  # max time without detection, seconds
-CHARACTER_FILE = 'arm/cat_characters/spot.json'
+CHARACTER_FILE = "arm/cat_characters/spot.json"
 
 data_queue: queue.Queue = queue.Queue(maxsize=100)
 
@@ -43,7 +43,7 @@ def control_mood() -> None:
     mood changes based on interaction through gestures
     """
     # cat characteristics
-    cat_profile = json.load(open(CHARACTER_FILE, 'r'))
+    cat_profile = json.load(open(CHARACTER_FILE, "r"))
     character_gaussians = cat_profile["gaussians"]
     gesture_impact = cat_profile["gesture_impact"]
 
@@ -96,12 +96,12 @@ def listen() -> None:
     detection algorithms. Stores received messages in a thread-safe queue.
     """
 
-    listener = Listener(('localhost', IPC_PORT))
+    listener = Listener(("localhost", IPC_PORT))
     conn = listener.accept()
-    print('connection accepted from', listener.last_accepted)
+    print("connection accepted from", listener.last_accepted)
     while True:
         msg = conn.recv()  # face, gesture from CV algo
-        if msg == 'close':
+        if msg == "close":
             conn.close()
             break
         try:
@@ -122,7 +122,7 @@ def control_movement() -> None:
     c.to_initial_position()
     pid = PID(control=c)
 
-    #TODO: Implement a timer to continue when stuck
+    # TODO: Implement a timer to continue when stuck
     last_homing = time.time()
 
     while True:
@@ -133,7 +133,7 @@ def control_movement() -> None:
                 current_face.x or 0,
                 current_face.y or 0,
                 current_face.frame_width,
-                current_face.frame_height
+                current_face.frame_height,
             )
 
         if not current_face.is_detected():
@@ -152,13 +152,17 @@ def control_movement() -> None:
             if mood == "RELAXED":
                 print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
                 c.led_on(20)
-                pid.move_control(x*0.8, y*0.8, frame_width, frame_height)
+                pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
             if mood == "ANGRY":
-                print(f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})")
+                print(
+                    f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
+                )
                 c.led_on(100)
                 pid.move_control(-x, -y, frame_width, frame_height)
             if mood == "DEPRESSED":
-                print(f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})")
+                print(
+                    f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
+                )
 
         if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
             c.to_initial_position()

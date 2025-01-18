@@ -12,26 +12,24 @@ def box_size(box: tuple[int, int, int, int]) -> float:
 
 # video capture setup
 video_capture = cv2.VideoCapture(0)
-video_capture.set(cv2.CAP_PROP_FOURCC,
-                  cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+video_capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc("M", "J", "P", "G"))
 video_capture.isOpened()
 
 width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
 height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 # IP address to communicate data with
-conn = Client(('localhost', 6282))  # port in accordance with arm/control.py
+conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
 
 # face detection setup
 # TODO: enable command-line choice of detection algorithm
 base_dir = os.path.dirname(os.path.abspath(__file__))
-face_model_file = os.path.join(
-    base_dir, 'models', 'res10_300x300_ssd_iter_140000.caffemodel')
-face_config_file = os.path.join(base_dir, 'models', 'deploy.prototxt')
+face_model_file = os.path.join(base_dir, "models", "res10_300x300_ssd_iter_140000.caffemodel")
+face_config_file = os.path.join(base_dir, "models", "deploy.prototxt")
 face_detector = detection.CaffeFaces(face_model_file, face_config_file)
 
 # gesture recognition setup
-modelpath = os.path.join(base_dir, 'models', 'gesture_recognizer.task')
+modelpath = os.path.join(base_dir, "models", "gesture_recognizer.task")
 gesture_recognizer = detection.MediapipeGestures(modelpath)
 
 GESTURE_CONFIRMATION_THRESHOLD = 5
@@ -45,7 +43,7 @@ try:
         # Capture frame-by-frame
         ret, frame = video_capture.read()
         if not ret:
-            print('Failed to capture frame.')
+            print("Failed to capture frame.")
             break
 
         # Face Detection, boxes with high confidence
@@ -60,8 +58,7 @@ try:
             lx, ly, rx, ry = box
             # Draw a rectangle around the faces
             cv2.rectangle(frame, (lx, ly), (rx, ry), (0, 255, 0), 2)
-            cv2.circle(frame, (int((lx+rx)/2), int((ly+ry)/2)),
-                       radius=3, color=(0, 0, 255))
+            cv2.circle(frame, (int((lx + rx) / 2), int((ly + ry) / 2)), radius=3, color=(0, 0, 255))
 
         # send largest face to control process
         if boxes_sorted:
@@ -71,16 +68,16 @@ try:
         else:
             face = Face.empty()
 
-# recognize gestures------------------------------------------------------------------------
+        # recognize gestures------------------------------------------------------------------------
 
         gestures: dict = gesture_recognizer.detect(frame)
         gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
-            detected_gesture  = gestures_sorted[-1][0]
+            detected_gesture = gestures_sorted[-1][0]
             no_gesture_counter = 0  # Reset counter since a gesture is detected
         else:
-            detected_gesture  = None
+            detected_gesture = None
             no_gesture_counter += 1
 
         # Update gesture buffer
@@ -103,22 +100,29 @@ try:
 
         # Display the confirmed gesture
         if current_confirmed_gesture:
-            cv2.putText(frame, current_confirmed_gesture, (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(
+                frame,
+                current_confirmed_gesture,
+                (50, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2,
+            )
 
         # send results
         print((face, current_confirmed_gesture))
         conn.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
-        cv2.imshow('Video', frame)
+        cv2.imshow("Video", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     # When everything is done, release the capture
     video_capture.release()
     cv2.destroyAllWindows()
 finally:
-    conn.send('close')
+    conn.send("close")
     conn.close()

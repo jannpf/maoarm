@@ -1,6 +1,7 @@
 """
 Helper module to experiment with cat mood visualization.
 """
+
 import json
 import sys
 import select
@@ -9,15 +10,16 @@ from arm import Cat
 
 import matplotlib.pyplot as plt
 
-cat_characteristics = json.load(open('arm/cat_characters/spot.json', 'r'))
-gaussians = cat_characteristics['gaussians']
+cat_characteristics = json.load(open("arm/cat_characters/spot.json", "r"))
+gaussians = cat_characteristics["gaussians"]
+
 
 def parse_input():
     rlist, _, _ = select.select([sys.stdin], [], [], 0.0)
     if not rlist:
         return None
     cmd = sys.stdin.readline().strip()
-    match = re.match(r'\(\-?\d+,\-?\d+\)', cmd)
+    match = re.match(r"\(\-?\d+,\-?\d+\)", cmd)
     # match = re.match(r'([av])(\=)([\+\-])(\d)+', cmd)
     if match:
         v, a = eval(cmd)
@@ -25,14 +27,15 @@ def parse_input():
         # exec(cmd, globals(), ldict)
         # v,a = ldict['v'], ldict['a']
         print((v, a))
-        return v/100, a/100
+        return v / 100, a / 100
 
     return None
 
 
 if __name__ == "__main__":
-    cat = Cat(valence=0.0, arousal=0.0,
-              proposal_sigma=0.2, gaussians=gaussians, plot=True)
+    cat = Cat(
+        valence=0.0, arousal=0.0, proposal_sigma=0.2, gaussians=gaussians, plot=True
+    )
     num_steps = 1000
     trace = []
 
@@ -41,8 +44,8 @@ if __name__ == "__main__":
 
         offset = parse_input()
         if offset:
-            v_new = cat.valence+offset[0]
-            a_new = cat.arousal+offset[1]
+            v_new = cat.valence + offset[0]
+            a_new = cat.arousal + offset[1]
             cat.override_mood(v_new, a_new)
 
         trace.append(cat.mood)
