@@ -37,6 +37,27 @@ logging.basicConfig(handlers=[logging.StreamHandler()])
 logger = logging.getLogger()
 
 
+def listen() -> None:
+    """
+    Listens at localhost/{IPC_PORT} to get data from CV face/gesture
+    detection algorithms. Stores received messages in a thread-safe queue.
+    """
+
+    listener = Listener(("localhost", IPC_PORT))
+    conn = listener.accept()
+    print("connection accepted from", listener.last_accepted)
+    while True:
+        msg = conn.recv()  # face, gesture from CV algo
+        if msg == "close":
+            conn.close()
+            break
+        try:
+            data_queue.put(msg)
+        except queue.Full:
+            print("Queue is full! Dropping...")
+    listener.close()
+
+
 def control_mood() -> None:
     """
     Controls the cat behaviour, including random mood drift and
@@ -88,27 +109,6 @@ def control_mood() -> None:
 
         cat.ax.set_title(f"My Mood: {current_mood}")
         time.sleep(MOOD_UPDATE_TIME)
-
-
-def listen() -> None:
-    """
-    Listens at localhost/{IPC_PORT} to get data from CV face/gesture
-    detection algorithms. Stores received messages in a thread-safe queue.
-    """
-
-    listener = Listener(("localhost", IPC_PORT))
-    conn = listener.accept()
-    print("connection accepted from", listener.last_accepted)
-    while True:
-        msg = conn.recv()  # face, gesture from CV algo
-        if msg == "close":
-            conn.close()
-            break
-        try:
-            data_queue.put(msg)
-        except queue.Full:
-            print("Queue is full! Dropping...")
-    listener.close()
 
 
 def control_movement() -> None:
