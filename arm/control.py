@@ -3,7 +3,6 @@ Robotic arm control module integrating face and gesture detection data.
 Listens for detection data, processes it, and controls arm movement and LED status.
 """
 
-import os
 import time
 import json
 import queue
@@ -23,11 +22,11 @@ MOOD_UPDATE_TIME = 1  # in seconds
 MAX_IDLE_TIME = 30  # max time without detection, seconds
 CHARACTER_FILE = 'arm/cat_characters/spot.json'
 
-data_queue = queue.Queue(maxsize=100)
+data_queue: queue.Queue = queue.Queue(maxsize=100)
 
-current_face = Face.empty()
-current_gesture = None
-current_mood = None
+current_face: Face = Face.empty()
+current_gesture: str = "None"
+current_mood: str = "None"
 
 # ensures safe (one thread at a time) access to shared data
 face_lock = threading.Lock()
@@ -38,7 +37,7 @@ logging.basicConfig(handlers=[logging.StreamHandler()])
 logger = logging.getLogger()
 
 
-def mood_control():
+def control_mood() -> None:
     """
     Controls the cat behaviour, including random mood drift and
     mood changes based on interaction through gestures
@@ -57,14 +56,15 @@ def mood_control():
         maxtracelen=15,
     )
 
-    last_gesture = None
+    last_gesture: str = "None"
+    detected_gesture: str = "None"
     global current_mood
 
     while True:
         cat.mood_iteration()
 
         # check for gestures
-        with gesture_lock:
+        with gesture_lock:  # shared with process()
             if current_gesture != "None":
                 detected_gesture = current_gesture
 
@@ -85,12 +85,12 @@ def mood_control():
                 current_mood = "ANGRY"
             else:
                 current_mood = "DEPRESSED"
-        
+
         cat.ax.set_title(f"My Mood: {current_mood}")
         time.sleep(MOOD_UPDATE_TIME)
 
 
-def listen():
+def listen() -> None:
     """
     Listens at localhost/{IPC_PORT} to get data from CV face/gesture
     detection algorithms. Stores received messages in a thread-safe queue.
@@ -111,7 +111,7 @@ def listen():
     listener.close()
 
 
-def control_movement():
+def control_movement() -> None:
     """
     Monitors the global current_face coordinates and
     controls the robotic arm movement using move_control().
@@ -124,11 +124,10 @@ def control_movement():
 
     #TODO: Implement a timer to continue when stuck
     last_homing = time.time()
-    
+
     while True:
         with mood_lock:
             mood = current_mood
-
         with face_lock:  # data shared with process()
             x, y, frame_width, frame_height = (
                 current_face.x or 0,
@@ -136,6 +135,7 @@ def control_movement():
                 current_face.frame_width,
                 current_face.frame_height
             )
+
         if not current_face.is_detected():
             c.stop()
             c.led_off()
@@ -159,14 +159,16 @@ def control_movement():
                 pid.move_control(-x, -y, frame_width, frame_height)
             if mood == "DEPRESSED":
                 print(f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})")
-        if time.time() - last_homing > 30:
+
+        if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
             c.to_initial_position()
             time.sleep(5)
             last_homing = time.time()
+
         time.sleep(MVMT_UPDATE_TIME)
 
 
-def process():
+def process() -> None:
     """
     Gets current face bounding box coordinates and gestures from queue,
     served by listener(). Updates current_face global variable.
@@ -184,17 +186,17 @@ def process():
         """
         current_x = current_face.x
         current_y = current_face.y
+        if current_x is None or current_y is None:  # just in case
+            return False
         previous_x = previous_face.x or 1e-5  # avoid div by zero
         previous_y = previous_face.y or 1e-5
-        ratio_x = 1 + abs((current_x - previous_x) /
-                          previous_x)  # type: ignore
-        ratio_y = 1 + abs((current_y - previous_y) /
-                          previous_y)  # type: ignore
+        ratio_x = 1 + abs((current_x - previous_x) / previous_x)
+        ratio_y = 1 + abs((current_y - previous_y) / previous_y)
         ratio = max(ratio_x, ratio_y)
         # Empirically 1.3 is the best threshold
         return ratio < threshold
 
-    window = deque(maxlen=WINDOW_SIZE)
+    window: deque = deque(maxlen=WINDOW_SIZE)
     global current_face
     global current_gesture
     face: Face
@@ -224,7 +226,7 @@ def process():
                     current_face = Face.empty()
 
             if gesture:
-                with gesture_lock:
+                with gesture_lock:  # shared with control_mood()
                     current_gesture = gesture
                 print(f"Gesture: {gesture}")
 
@@ -232,19 +234,14 @@ def process():
             continue
 
 
-def main():
-    try:
-        os.remove("interim_values.json")
-    except FileNotFoundError:
-        pass
-
+def main() -> None:
     input_thread = threading.Thread(target=listen, daemon=True)
     input_thread.start()
     control_thread = threading.Thread(target=control_movement, daemon=True)
     control_thread.start()
     processing_thread = threading.Thread(target=process, daemon=True)
     processing_thread.start()
-    mood_control()
+    control_mood()
 
 
 if __name__ == "__main__":

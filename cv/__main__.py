@@ -36,8 +36,8 @@ gesture_recognizer = detection.MediapipeGestures(modelpath)
 
 GESTURE_CONFIRMATION_THRESHOLD = 5
 GESTURE_TIMEOUT_FRAMES = 10
-gesture_buffer = {}
-current_confirmed_gesture = None
+gesture_buffer: dict = {}
+current_confirmed_gesture: str = "None"
 no_gesture_counter = 0
 
 try:
@@ -73,7 +73,7 @@ try:
 
 # recognize gestures------------------------------------------------------------------------
 
-        gestures = gesture_recognizer.detect(frame)
+        gestures: dict = gesture_recognizer.detect(frame)
         gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
@@ -97,14 +97,14 @@ try:
             if count >= GESTURE_CONFIRMATION_THRESHOLD:
                 current_confirmed_gesture = gesture
                 break
-        
+
         if no_gesture_counter >= GESTURE_TIMEOUT_FRAMES:
-            current_confirmed_gesture = None
+            current_confirmed_gesture = "None"
 
         # Display the confirmed gesture
         if current_confirmed_gesture:
             cv2.putText(frame, current_confirmed_gesture, (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)            
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # send results
         print((face, current_confirmed_gesture))

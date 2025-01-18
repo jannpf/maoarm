@@ -1,10 +1,11 @@
-import random
+"""
+Helper module to experiment with cat mood visualization.
+"""
 import json
-import math
 import sys
 import select
 import re
-from arm.cat import Cat
+from arm import Cat
 
 import matplotlib.pyplot as plt
 

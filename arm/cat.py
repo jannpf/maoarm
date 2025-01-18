@@ -26,8 +26,8 @@ class Cat:
         self.proposal_sigma = proposal_sigma
         self.gaussians = gaussians
         self.plot = plot
-        self.mood_trace = None
-        self.arrows = []
+        self.mood_trace: deque = deque()
+        self.arrows: list = []
 
         if plot:
             self.initialize_plotting()
