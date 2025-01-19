@@ -1,6 +1,7 @@
 from typing import Union
 import abc
 
+
 class DetectionBase(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __init__(self):

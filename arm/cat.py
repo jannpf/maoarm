@@ -8,8 +8,17 @@ from matplotlib.patches import Ellipse
 from matplotlib.axes import Axes
 from matplotlib.colors import to_rgba
 
+
 class Cat:
-    def __init__(self, gaussians: list[dict], valence: float = 0.0, arousal: float = 0.0, proposal_sigma: float = 0.2, plot: bool = False, maxtracelen: int = 10):
+    def __init__(
+        self,
+        gaussians: list[dict],
+        valence: float = 0.0,
+        arousal: float = 0.0,
+        proposal_sigma: float = 0.2,
+        plot: bool = False,
+        maxtracelen: int = 10,
+    ):
         """
         Initializes a new Cat with the given character profile.
 
@@ -19,15 +28,15 @@ class Cat:
             arousal:            The initial arousal, between -1 and 1
             proposal_sigma:     The standard deviation of the proposal distribution for Metropolis Hastings
             plot:               Whether or not to plot the mood trace of the cat
-            maxtracelen:        In case of plot=True, this determines how many values are displayed concurrently at max 
+            maxtracelen:        In case of plot=True, this determines how many values are displayed concurrently at max
         """
         self.valence = valence
         self.arousal = arousal
         self.proposal_sigma = proposal_sigma
         self.gaussians = gaussians
         self.plot = plot
-        self.mood_trace = None
-        self.arrows = []
+        self.mood_trace: deque = deque()
+        self.arrows: list = []
 
         if plot:
             self.initialize_plotting()
@@ -42,14 +51,14 @@ class Cat:
         """
         Density at (x,y) for gaussian g. Assumes no correlation between components.
         """
-        w = g['weight']
-        mx, my = g['mu']
-        sx, sy = g['sigma_x'], g['sigma_y']
+        w = g["weight"]
+        mx, my = g["mu"]
+        sx, sy = g["sigma_x"], g["sigma_y"]
 
         # gaussian exponent (without constant factors - irrelevant for MH)
-        dx = (x - mx)**2 / (2 * sx**2)
-        dy = (y - my)**2 / (2 * sy**2)
-        exponent = math.exp(- (dx + dy))
+        dx = (x - mx) ** 2 / (2 * sx**2)
+        dy = (y - my) ** 2 / (2 * sy**2)
+        exponent = math.exp(-(dx + dy))
 
         # weighted exponent
         return w * exponent
@@ -59,10 +68,10 @@ class Cat:
         """
         Density at (x,y) for gaussian g. Correlation between components can be passed with key 'rho'.
         """
-        w = g['weight']
-        mx, my = g['mu']
-        sx, sy = g['sigma_x'], g['sigma_y']
-        rho = g['rho']
+        w = g["weight"]
+        mx, my = g["mu"]
+        sx, sy = g["sigma_x"], g["sigma_y"]
+        rho = g["rho"]
 
         # Translate point by mean
         dx = x - mx
@@ -75,11 +84,11 @@ class Cat:
 
         # The exponent in the correlated 2D Gaussian:
         #    E = 1/(2*(1-rho^2)) * [ (dx^2 / sx^2) - 2*rho*(dx*dy)/(sx*sy) + (dy^2 / sy^2 ) ]
-        term1 = (dx*dx)/(sx*sx)
-        term2 = -2.0*rho*(dx*dy)/(sx*sy)
-        term3 = (dy*dy)/(sy*sy)
+        term1 = (dx * dx) / (sx * sx)
+        term2 = -2.0 * rho * (dx * dy) / (sx * sy)
+        term3 = (dy * dy) / (sy * sy)
 
-        exponent = 0.5 * (1.0/one_minus_rho2) * (term1 + term2 + term3)
+        exponent = 0.5 * (1.0 / one_minus_rho2) * (term1 + term2 + term3)
 
         # exp(-E).
         return w * math.exp(-exponent)
@@ -138,8 +147,8 @@ class Cat:
 
     def override_mood(self, v_offset: float, a_offset: float, gesture: str) -> None:
         """
-        Use this function to update the mood of the cat based on vector addition. 
-        If plotting is enabled, the override will be displayed as a red arrow, 
+        Use this function to update the mood of the cat based on vector addition.
+        If plotting is enabled, the override will be displayed as a red arrow,
         and the trace of the visualization will be updated.
 
         Args:
@@ -167,15 +176,13 @@ class Cat:
         if len(self.mood_trace) > 0:
             alphas = np.linspace(0.1, 1.0, len(self.mood_trace))  # Fading from light to solid
             colors = [to_rgba("blue", alpha) for alpha in alphas]
-            
+
             x_vals, y_vals = zip(*self.mood_trace)
 
             if self.scatter_plot:
                 self.scatter_plot.remove()
 
-            self.scatter_plot = self.ax.scatter(
-                x_vals, y_vals, c=colors, edgecolors='none', s=50
-            )
+            self.scatter_plot = self.ax.scatter(x_vals, y_vals, c=colors, edgecolors="none", s=50)
 
             new_arrows = []
             for arrow, label, end in self.arrows:
@@ -189,7 +196,6 @@ class Cat:
             self.fig.canvas.draw()
             plt.pause(0.01)
 
-
     @staticmethod
     def plot_gaussian(ax: Axes, mx: float, my: float, sx: float, sy: float, rho: float):
         """
@@ -197,10 +203,12 @@ class Cat:
         defined by (mx, my, sx, sy, rho) on the given Axes `ax`.
         """
         # Build the 2x2 covariance matrix
+        # fmt: off
         cov = np.array([
             [sx*sx,       rho*sx*sy],
             [rho*sx*sy,   sy*sy]
         ])
+        # fmt: on
 
         # We'll plot the 1-, 2-, 3-sigma ellipses
         for n_std in [1, 2, 3]:
@@ -225,16 +233,16 @@ class Cat:
                 height=height,
                 angle=theta,
                 fill=False,
-                color='black',
+                color="black",
                 lw=0.5,
-                alpha=0.3
+                alpha=0.3,
             )
             ax.add_patch(ellipse)
 
     def plot_arrow(self, start: tuple, end: tuple, gesture: str):
         """
         Plot an arrow between start and end points, labeling it with the gesture name.
-    
+
         Args:
             start (tuple): Starting coordinates of the arrow (x, y).
             end (tuple): Ending coordinates of the arrow (x, y).
@@ -245,13 +253,13 @@ class Cat:
             start[1],
             end[0] - start[0],
             end[1] - start[1],
-            shape='full',
-            color='red',
+            shape="full",
+            color="red",
             head_length=0.03,
             head_width=0.02,
             linewidth=1.5,
             length_includes_head=True,
-            alpha=0.8
+            alpha=0.8,
         )
 
         midpoint_x = (start[0] + end[0]) / 2
@@ -265,15 +273,14 @@ class Cat:
             midpoint_y + label_offset_y,
             gesture,
             fontsize=9,
-            color='black',
-            ha='center',  # Horizontal alignment
-            va='center',  # Vertical alignment
-            alpha=0.8  # Slight transparency for the label
-        )   
+            color="black",
+            ha="center",  # Horizontal alignment
+            va="center",  # Vertical alignment
+            alpha=0.8,  # Slight transparency for the label
+        )
         self.arrows.append((arrow, label, end))
         self.fig.canvas.draw()
         plt.pause(0.01)
-
 
     def initialize_plotting(self):
         plt.ion()
@@ -286,9 +293,11 @@ class Cat:
 
         # plot 1,2,3 sigma contour lines for all the configured gaussians
         for g in self.gaussians:
-            mx, my = g['mu']
-            sx, sy = g['sigma_x'], g['sigma_y']
-            rho = g['rho']
+            mx, my = g["mu"]
+            sx, sy = g["sigma_x"], g["sigma_y"]
+            rho = g["rho"]
             self.plot_gaussian(self.ax, mx, my, sx, sy, rho)
 
-        self.scatter_plot = self.ax.scatter([], [], c=[], facecolors=[], edgecolors='none', alpha=0.5)
+        self.scatter_plot = self.ax.scatter(
+            [], [], c=[], facecolors=[], edgecolors="none", alpha=0.5
+        )

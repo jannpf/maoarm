@@ -18,7 +18,7 @@ class CascadeFaces(DetectionBase):
             minNeighbors=5,
             minSize=(30, 30),
             flags=cv2.CASCADE_SCALE_IMAGE,
-            outputRejectLevels=True
+            outputRejectLevels=True,
         )
 
         result = []

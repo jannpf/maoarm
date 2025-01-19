@@ -45,7 +45,9 @@ class Face:
 
     def __repr__(self):
         """Calling face should return centered coordinates."""
-        return f"Face center at: {self.x, self.y}; frame dim is {self.frame_width}x{self.frame_height}"
+        return (
+            f"Face center at: {self.x, self.y}; frame dim is {self.frame_width}x{self.frame_height}"
+        )
 
     def _to_center_coord(self, lx: float, ly: float, rx: float, ry: float):
         """
@@ -75,7 +77,7 @@ class Face:
         return all(value is not None for value in (self.x, self.y, self.w, self.h))
 
     @classmethod
-    def empty(cls, width: float = 0.0, height: float = 0.0) -> 'Face':
+    def empty(cls, width: float = 0.0, height: float = 0.0) -> "Face":
         """
         Create an empty Face object with no coordinates.
 

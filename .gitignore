@@ -165,4 +165,5 @@ cython_debug/
 .vscode/
 
 *.py-E
-"face_detection_julian/yolov7/" 
+"face_detection_julian/yolov7/"
+.DS_Store
