@@ -19,7 +19,7 @@ width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
 height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 # IP address to communicate data with
-conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
+#conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
 
 # face detection setup
 # TODO: enable command-line choice of detection algorithm
@@ -31,6 +31,7 @@ face_detector = detection.CaffeFaces(face_model_file, face_config_file)
 # gesture recognition setup
 modelpath = os.path.join(base_dir, "models", "gesture_recognizer.task")
 gesture_recognizer = detection.MediapipeGestures(modelpath)
+wave_recognizer = detection.MediapipeWaves()
 
 GESTURE_CONFIRMATION_THRESHOLD = 5
 GESTURE_TIMEOUT_FRAMES = 10
@@ -70,8 +71,18 @@ try:
 
         # recognize gestures------------------------------------------------------------------------
 
-        gestures: dict = gesture_recognizer.detect(frame)
-        gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
+        gestures = gesture_recognizer.detect(frame)
+        waves = wave_recognizer.detect(frame)
+
+        print(f"Waves detected: {waves}")  # Debugging wave detection
+
+        # Check internal wave detection state
+        print(f"Wave Detection Debugging:")
+        print(f"  Right Hand X History: {wave_recognizer.right_hand_x_history}")
+        print(f"  Left Hand X History: {wave_recognizer.left_hand_x_history}")
+
+        combined_gestures = {**gestures, **waves}
+        gestures_sorted = sorted(combined_gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
             detected_gesture = gestures_sorted[-1][0]
@@ -112,7 +123,7 @@ try:
 
         # send results
         print((face, current_confirmed_gesture))
-        conn.send((face, current_confirmed_gesture))
+        #conn.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow("Video", frame)
@@ -124,5 +135,6 @@ try:
     video_capture.release()
     cv2.destroyAllWindows()
 finally:
-    conn.send("close")
-    conn.close()
+    print("Closing connection")
+    #conn.send("close")
+    #conn.close()
