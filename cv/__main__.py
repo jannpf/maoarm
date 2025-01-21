@@ -4,6 +4,10 @@ from multiprocessing.connection import Client
 from .face import Face
 from . import detection  # CaffeFaces, MediapipeGestures
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 def box_size(box: tuple[int, int, int, int]) -> float:
     lx, ly, rx, ry = box
@@ -75,11 +79,6 @@ try:
         waves = wave_recognizer.detect(frame)
 
         print(f"Waves detected: {waves}")  # Debugging wave detection
-
-        # Check internal wave detection state
-        print(f"Wave Detection Debugging:")
-        print(f"  Right Hand X History: {wave_recognizer.right_hand_x_history}")
-        print(f"  Left Hand X History: {wave_recognizer.left_hand_x_history}")
 
         combined_gestures = {**gestures, **waves}
         gestures_sorted = sorted(combined_gestures.items(), key=lambda x: x[1])
