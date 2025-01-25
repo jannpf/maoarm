@@ -46,8 +46,8 @@ class AngleControl(BasicControl):
         command = {
             "T": 102,
             "base": 0,
-            "shoulder": 0,
-            "elbow": 1.57,
+            "shoulder": -0.5,
+            "elbow": 1.87,
             "hand": 3,
             "spd": spd,
             "acc": acc

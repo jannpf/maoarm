@@ -21,7 +21,7 @@ class CaffeFaces(DetectionBase):
             size=(300, 300),
             mean=(104.0, 177.0, 123.0),
             swapRB=False,
-            crop=False
+            crop=False,
         )
 
         self.net.setInput(blob)

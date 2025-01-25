@@ -1,20 +1,38 @@
 # arm
 
-A python package for controlling the arm movement. `ArmControl.py` contains basic movement commands. `control.py` sets up an interface to listen to updates from face detection algorithm and adjust the arm position accordingly.
+A python package for controlling the movement of the arm. Overview of the main modules:
+1. `control.py`
+    * Is the main controller
+    * Sets up an interface to listen to updates from face/gesture detection algorithm
+    * Adjusts the arm position/behaviour in accordance with the updates
+2. `ArmControl.py`
+    * Contains basic movement commands
+    * Is a python wrapper over HTTP interface of the arm
+3. `cat.py`
+    * Defines an interface for the cat behaviour (initial "character" based on params for gaussians)
+    * Initializes methods to update cat moods based on gestures
+    * Contains mood visualization code
+4. `pid.py`
+    * Defines a PID controller for movement
+    * Optionally (enabled by default) writes current PID error terms to a file
+    * Also contains corresponding visualization code in a separate function
+    * WARNING: current implementation uses an absolute error term, which deviates from PID in a "classic" sense
 
 ## Some notes on movement
 
 More here: 
-* [Python communication](https://www.waveshare.com/wiki/RoArm-M2-S_Python_HTTP_Request_Communication)
+* [Python communication with the arm](https://www.waveshare.com/wiki/RoArm-M2-S_Python_HTTP_Request_Communication)
 * [json commands](https://www.waveshare.com/wiki/RoArm-M2-S_Robotic_Arm_Control)
 
-## Quickstart
+## Quickstart for experimenting with movement
 1. Assemble and turn on the robotic arm.
 2. Connect to Wi-Fi `RoArm-M2` (password is 12345678).
 3. Run 192.168.4.1 in browser to access UI, or, alternatively, execute step 4.
-4. Start the server: `python3 basic.py 192.168.4.1` and enter json commands to control the arm.
+4. Start the server: `python3 scripts/basic.py 192.168.4.1` and enter json commands to control the arm.
 
-Examples of json commands are provided in further sections.
+Examples of json commands are provided in further sections. 
+
+There is also a `scripts/pacman.py` script available for a simple demonstration on how to implement movement commands.
 
 ## Commands
 ### Basic commands 

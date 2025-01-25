@@ -1,28 +1,36 @@
-from dataclasses import dataclass, field
-from arm import AngleControl
-from time import time
-import matplotlib.pyplot as plt
 import json
+import matplotlib.pyplot as plt
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from time import time
+
+from arm import AngleControl
+
+VISUALIZATION_FILE = Path("interim_values.json")
 
 
 @dataclass
 class PID:
     """
-    A PID controller for smooth robotic arm control.
+    A PID controller for smooth robotic arm control. As a side effect,
+    records values of current control params over time into a json file.
 
     Attributes:
         control (AngleControl): Interface for controlling the robotic arm's movement.
+        record_visualization (bool): Whether to record current parameter values.
         dt (float): Time step between control updates.
         kp, ki, kd (float): PID gains.
         min_output, max_output (int): limits for the speed controller output.
     """
 
     control: AngleControl
+    record_visualization: bool = False
 
     kpx: float = 60.0
     kpy: float = 12.0
-    kix: float = 0.0
-    kiy: float = 0.0
+    kix: float = 0.0  # I control does not make sense as error >= 0
+    kiy: float = 0.0  # I control does not make sense as error >= 0
     kdx: float = 0.5
     kdy: float = 0.1
 
@@ -37,9 +45,14 @@ class PID:
     last_error_x: float = field(default=0.0, init=False)
     last_error_y: float = field(default=0.0, init=False)
 
-    interim_values: list = field(default_factory=list, init=False)
     start_time = time()
     previous_time = 0
+
+    def __post_init__(self):
+        # Clear the content of the visualization file if it exists
+        if self.record_visualization:
+            VISUALIZATION_FILE.touch(exist_ok=True)  # Ensure the file exists
+            VISUALIZATION_FILE.write_text('')  # Empty the file
 
     def move_control(
         self,
@@ -63,6 +76,8 @@ class PID:
         """
         current_time = time() - self.start_time
         self.dt: float = current_time - self.previous_time
+
+        # TODO: come up with "real" PID (take non-abs values)
         error_x = abs(target_x / (width / 2))  # not nice to take abs
         error_y = abs(target_y / (height / 2))
 
@@ -106,49 +121,53 @@ class PID:
         # reset shoulder as it tends to move
         self.control.shoulder_to(0, spd=2, acc=2)
 
-        entry = {
-            "time": round(current_time, 3),
-            "target_x": target_x,
-            "target_y": target_y,
-            "error_x": error_x,
-            "error_y": error_y,
-            "p_x": p_x,
-            "p_y": p_y,
-            "i_x": i_x,
-            "i_y": i_y,
-            "d_x": d_x,
-            "d_y": d_y,
-            "control_x": control_x,
-            "control_y": control_y,
-            "spdx": spdx,
-            "spdy": spdy
-        }
-        self._append_to_json_file(entry)
+        if self.record_visualization:
+            entry = {
+                "time": round(current_time, 3),
+                "target_x": target_x,
+                "target_y": target_y,
+                "error_x": error_x,
+                "error_y": error_y,
+                "p_x": p_x,
+                "p_y": p_y,
+                "i_x": i_x,
+                "i_y": i_y,
+                "d_x": d_x,
+                "d_y": d_y,
+                "control_x": control_x,
+                "control_y": control_y,
+                "spdx": spdx,
+                "spdy": spdy
+            }
+            self._append_to_json_file(entry)
 
 
-    def _append_to_json_file(self, entry):
+    def _append_to_json_file(self, entry: dict):
         import json
         try:
-            with open("interim_values.json", 'r+') as f:
+            with open(VISUALIZATION_FILE, 'r+') as f:
                 data = json.load(f)
                 data.append(entry)
                 f.seek(0)
                 json.dump(data, f, indent=4)
-        except FileNotFoundError:
-            with open("interim_values.json", 'w') as f:
+        except FileNotFoundError:  # just in case
+            with open(VISUALIZATION_FILE, 'w') as f:
                 json.dump([entry], f, indent=4)
 
 
-def visualize(file="interim_values.json"):
+def visualize(file=VISUALIZATION_FILE):
     # Load data from file
     with open(file, 'r') as f:
         data = json.load(f)
 
     # Extracting times and corresponding values
     fields = [
-        "target_x", "target_y", "error_x", "error_y",
-        "p_x", "p_y", "i_x", "i_y",
-        "d_x", "d_y", "control_x", "control_y",
+        "target_x", "target_y",
+        "error_x", "error_y",
+        "p_x", "p_y",
+        "i_x", "i_y",
+        "d_x", "d_y",
+        "control_x", "control_y",
         "spdx", "spdy"
     ]
 
