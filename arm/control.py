@@ -79,7 +79,7 @@ def control_mood() -> None:
 
     last_gesture: str = "None"
     detected_gesture: str = "None"
-    global current_mood
+    global current_mood, current_gesture
 
     while True:
         cat.mood_iteration()
@@ -122,6 +122,10 @@ def control_movement() -> None:
     c.to_initial_position()
     pid = PID(control=c)
 
+    global current_face
+    global current_mood
+    face: Face
+
     # TODO: Implement a timer to continue when stuck
     last_homing = time.time()
 
@@ -129,14 +133,15 @@ def control_movement() -> None:
         with mood_lock:
             mood = current_mood
         with face_lock:  # data shared with process()
-            x, y, frame_width, frame_height = (
-                current_face.x or 0,
-                current_face.y or 0,
-                current_face.frame_width,
-                current_face.frame_height,
-            )
+            face = current_face
 
-        if not current_face.is_detected():
+        x, y, frame_width, frame_height = (
+            face.x or 0,
+            face.y or 0,
+            face.frame_width,
+            face.frame_height,
+        )
+        if not face.is_detected():
             c.stop()
             c.led_off()
         elif c.elbow_breach() or c.base_breach():
