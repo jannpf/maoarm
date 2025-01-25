@@ -28,8 +28,9 @@ pipeline = rs.pipeline()
 config = rs.config()
 
 config.disable_all_streams()
-config.enable_stream(rs.stream.color,0, rs.format.rgb8, 15)
-pipeline.start()
+config.enable_stream(rs.stream.color, 640,480, rs.format.rgb8, 30)
+
+pipeline.start(config)
 
 # IP address to communicate data with
 conn = Client(('localhost', 6282))  # port in accordance with arm/control.py
@@ -62,7 +63,7 @@ try:
 
         frames = pipeline.wait_for_frames()
         frame = frames.get_color_frame()
-        w, h = frame.get_width(), frame.get_height()# 640,480
+        width, height = frame.get_width(), frame.get_height()
         frame = np.asanyarray(frame.get_data())
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         
