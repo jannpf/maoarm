@@ -107,7 +107,7 @@ def control_mood() -> None:
             else:
                 current_mood = "DEPRESSED"
 
-        cat.ax.set_title(f"My Mood: {current_mood}")
+            cat.ax.set_title(f"My Mood: {current_mood}")
         time.sleep(MOOD_UPDATE_TIME)
 
 
@@ -133,18 +133,16 @@ def control_movement() -> None:
         with mood_lock:
             mood = current_mood
         with face_lock:  # data shared with process()
-            face = current_face
-
-        x, y, frame_width, frame_height = (
-            face.x or 0,
-            face.y or 0,
-            face.frame_width,
-            face.frame_height,
-        )
-        if not face.is_detected():
-            c.stop()
-            c.led_off()
-        elif c.elbow_breach() or c.base_breach():
+            x, y, frame_width, frame_height = (
+                current_face.x or 0,
+                current_face.y or 0,
+                current_face.frame_width,
+                current_face.frame_height,
+            )
+            if not current_face.is_detected():
+                c.stop()
+                c.led_off()
+        if c.elbow_breach() or c.base_breach():
             c.stop()
             c.to_initial_position()
             c.led_off()
@@ -184,7 +182,7 @@ def process() -> None:
     """
 
     def face_coord_ratio_lower_than_threshold(
-        previous_face: Face, current_face: Face, threshold: float = 1.3
+        previous_face: Face, face: Face, threshold: float = 1.3
     ) -> bool:
         """
         Helper function. Designed for the purpose of ignoring face update
@@ -193,8 +191,8 @@ def process() -> None:
         Returns True if face did not move/change more
         than by the factor of threshold.
         """
-        current_x = current_face.x
-        current_y = current_face.y
+        current_x = face.x
+        current_y = face.y
         if current_x is None or current_y is None:  # just in case
             return False
         previous_x = previous_face.x or 1e-5  # avoid div by zero
