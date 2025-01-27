@@ -10,10 +10,11 @@ import json
 class BasicControl:
     def __init__(self, ip_address):
         self.ip_address = ip_address
+        self.session: requests.Session = requests.session()
 
     def run_and_get_response(self, command: str) -> str:
         url = "http://" + self.ip_address + "/js?json=" + command
-        response = requests.get(url)
+        response = self.session.get(url, timeout=(1,2))
         content = response.text
         return content
 
