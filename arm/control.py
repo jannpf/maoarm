@@ -133,15 +133,16 @@ def control_movement() -> None:
         with mood_lock:
             mood = current_mood
         with face_lock:  # data shared with process()
-            x, y, frame_width, frame_height = (
+            x, y, frame_width, frame_height, face_detected = (
                 current_face.x or 0,
                 current_face.y or 0,
                 current_face.frame_width,
                 current_face.frame_height,
+                current_face.is_detected()
             )
-            if not current_face.is_detected():
-                c.stop()
-                c.led_off()
+        if not face_detected:
+            c.stop()
+            c.led_off()
         if c.elbow_breach() or c.base_breach():
             c.stop()
             c.to_initial_position()
