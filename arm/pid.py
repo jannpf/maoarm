@@ -52,7 +52,7 @@ class PID:
         # Clear the content of the visualization file if it exists
         if self.record_visualization:
             VISUALIZATION_FILE.touch(exist_ok=True)  # Ensure the file exists
-            VISUALIZATION_FILE.write_text('')  # Empty the file
+            VISUALIZATION_FILE.write_text('[]')  # Empty the file
 
     def move_control(
         self,
