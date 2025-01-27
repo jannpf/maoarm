@@ -1,13 +1,11 @@
 import os
-import time
 from multiprocessing.connection import Client
 
 import cv2
-import pyrealsense2 as rs
-import numpy as np
 
 from .face import Face
 from . import detection  # CaffeFaces, MediapipeGestures
+from .camera import Realsense
 
 
 def box_size(box: tuple[int, int, int, int]) -> float:
@@ -15,22 +13,10 @@ def box_size(box: tuple[int, int, int, int]) -> float:
     return (rx - lx) * (ry - ly)
 
 
-# video capture setup
-# video_capture = cv2.VideoCapture(-1)
-# video_capture.set(cv2.CAP_PROP_FOURCC,
-#                   cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-# video_capture.isOpened()
-
-# width = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
-# height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
-
-pipeline = rs.pipeline()
-config = rs.config()
-
-config.disable_all_streams()
-config.enable_stream(rs.stream.color, 640,480, rs.format.rgb8, 30)
-
-pipeline.start(config)
+# initialize camera
+camera = Realsense.RealsenseCamera()
+frame_width = camera.frame_width()
+frame_height = camera.frame_height()
 
 # IP address to communicate data with
 conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
@@ -38,7 +24,12 @@ conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
 # face detection setup
 # TODO: enable command-line choice of detection algorithm
 base_dir = os.path.dirname(os.path.abspath(__file__))
-face_model_file = os.path.join(base_dir, "models", "res10_300x300_ssd_iter_140000.caffemodel")
+face_model_file = os.path.join(
+    base_dir,
+    "models",
+    "res10_300x300_ssd_iter_140000.caffemodel"
+)
+
 face_config_file = os.path.join(base_dir, "models", "deploy.prototxt")
 face_detector = detection.CaffeFaces(face_model_file, face_config_file)
 
@@ -55,16 +46,7 @@ no_gesture_counter = 0
 try:
     while True:
         # Capture frame-by-frame
-        # ret, frame = video_capture.read()
-        # if not ret:
-        #     print('Failed to capture frame.')
-        #     break
-
-        frames = pipeline.wait_for_frames()
-        frame = frames.get_color_frame()
-        width, height = frame.get_width(), frame.get_height()
-        frame = np.asanyarray(frame.get_data())
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        frame = camera.get_frame()
 
         # Face Detection, boxes with high confidence
         boxes: list = face_detector.detect(frame)
@@ -78,13 +60,14 @@ try:
             lx, ly, rx, ry = box
             # Draw a rectangle around the faces
             cv2.rectangle(frame, (lx, ly), (rx, ry), (0, 255, 0), 2)
-            cv2.circle(frame, (int((lx + rx) / 2), int((ly + ry) / 2)), radius=3, color=(0, 0, 255))
+            cv2.circle(frame, (int((lx + rx) / 2), int((ly + ry) / 2)),
+                       radius=3, color=(0, 0, 255))
 
         # send largest face to control process
         if boxes_sorted:
             largest_face_coords = boxes_sorted[-1]
             lflx, lfly, lfrx, lfry = largest_face_coords
-            face = Face(lflx, lfly, lfrx, lfry, width, height)
+            face = Face(lflx, lfly, lfrx, lfry, frame_width, frame_height)
         else:
             face = Face.empty()
 
@@ -105,7 +88,8 @@ try:
             if detected_gesture in gesture_buffer:
                 gesture_buffer[detected_gesture] += 1
             else:
-                gesture_buffer = {detected_gesture: 1}  # Reset buffer for new gesture
+                # Reset buffer for new gesture
+                gesture_buffer = {detected_gesture: 1}  
         else:
             gesture_buffer = {}
 
