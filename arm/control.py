@@ -121,61 +121,64 @@ def control_movement() -> None:
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
     pid = PID(control=c)
+    logger = logging.getLogger()
 
     global current_face
     global current_mood
-    face: Face
 
     # TODO: Implement a timer to continue when stuck
     last_homing = time.time()
 
-    while True:
-        with mood_lock:
-            mood = current_mood
-        with face_lock:  # data shared with process()
-            x, y, frame_width, frame_height, face_detected = (
-                current_face.x or 0,
-                current_face.y or 0,
-                current_face.frame_width,
-                current_face.frame_height,
-                current_face.is_detected()
-            )
-        if not face_detected:
-            c.stop()
-            c.led_off()
-
-        current_position = c.current_position()
-        if c.elbow_breach(current_position) or c.base_breach(current_position):
-            c.stop()
-            c.to_initial_position()
-            c.led_off()
-        else:
-            last_homing = time.time()
-            if mood == "EXCITED":
-                print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
-                c.led_on(40)
-                pid.move_control(x, y, frame_width, frame_height)
-            if mood == "RELAXED":
-                print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
-                c.led_on(20)
-                pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
-            if mood == "ANGRY":
-                print(
-                    f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
+    try:
+        while True:
+            with mood_lock:
+                mood = current_mood
+            with face_lock:  # data shared with process()
+                x, y, frame_width, frame_height, face_detected = (
+                    current_face.x or 0,
+                    current_face.y or 0,
+                    current_face.frame_width,
+                    current_face.frame_height,
+                    current_face.is_detected()
                 )
-                c.led_on(100)
-                pid.move_control(-x, -y, frame_width, frame_height)
-            if mood == "DEPRESSED":
-                print(
-                    f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
-                )
+            if not face_detected:
+                c.stop()
+                c.led_off()
 
-        if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
-            c.to_initial_position()
-            time.sleep(5)
-            last_homing = time.time()
+            current_position = c.current_position()
+            if c.elbow_breach(current_position) or c.base_breach(current_position):
+                c.stop()
+                c.to_initial_position()
+                c.led_off()
+            else:
+                last_homing = time.time()
+                if mood == "EXCITED":
+                    print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
+                    c.led_on(40)
+                    pid.move_control(x, y, frame_width, frame_height)
+                if mood == "RELAXED":
+                    print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
+                    c.led_on(20)
+                    pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
+                if mood == "ANGRY":
+                    print(
+                        f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
+                    )
+                    c.led_on(100)
+                    pid.move_control(-x, -y, frame_width, frame_height)
+                if mood == "DEPRESSED":
+                    print(
+                        f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
+                    )
 
-        time.sleep(MVMT_UPDATE_TIME)
+            if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
+                c.to_initial_position()
+                time.sleep(5)
+                last_homing = time.time()
+
+            time.sleep(MVMT_UPDATE_TIME)
+    except Exception as e:
+        logger.exception(e)
 
 
 def process() -> None:
