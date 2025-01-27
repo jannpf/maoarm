@@ -98,8 +98,9 @@ class AngleControl(BasicControl):
         command = {"T": 123, "m": 0, "axis": 3, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
 
-    def elbow_breach(self) -> bool:
-        coords = self.current_position()
+    def elbow_breach(self, coords: dict = None) -> bool:
+        if not coords:
+            coords = self.current_position()
         if coords["e"] < 0.28 or coords["b"] > 2.50:
             return True
         return False
@@ -136,8 +137,9 @@ class AngleControl(BasicControl):
         command = {"T": 123, "m": 0, "axis": 1, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
 
-    def base_breach(self) -> bool:
-        coords = self.current_position()
+    def base_breach(self, coords: dict = None) -> bool:
+        if not coords:
+            coords = self.current_position()
         if coords["b"] < -3.14 or coords["b"] > 3.14:
             return True
         return False
