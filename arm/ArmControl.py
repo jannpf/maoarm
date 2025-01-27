@@ -10,10 +10,11 @@ import json
 class BasicControl:
     def __init__(self, ip_address):
         self.ip_address = ip_address
+        self.session: requests.Session = requests.session()
 
     def run_and_get_response(self, command: str) -> str:
         url = "http://" + self.ip_address + "/js?json=" + command
-        response = requests.get(url)
+        response = self.session.get(url, timeout=(1,2))
         content = response.text
         return content
 
@@ -98,8 +99,9 @@ class AngleControl(BasicControl):
         command = {"T": 123, "m": 0, "axis": 3, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
 
-    def elbow_breach(self) -> bool:
-        coords = self.current_position()
+    def elbow_breach(self, coords: dict = {}) -> bool:
+        if not coords:
+            coords = self.current_position()
         if coords["e"] < 0.28 or coords["b"] > 2.50:
             return True
         return False
@@ -136,8 +138,9 @@ class AngleControl(BasicControl):
         command = {"T": 123, "m": 0, "axis": 1, "cmd": 0}
         self.run_and_get_response(json.dumps(command))
 
-    def base_breach(self) -> bool:
-        coords = self.current_position()
+    def base_breach(self, coords: dict = {}) -> bool:
+        if not coords:
+            coords = self.current_position()
         if coords["b"] < -3.14 or coords["b"] > 3.14:
             return True
         return False

@@ -79,7 +79,7 @@ def control_mood() -> None:
 
     last_gesture: str = "None"
     detected_gesture: str = "None"
-    global current_mood
+    global current_mood, current_gesture
 
     while True:
         cat.mood_iteration()
@@ -107,7 +107,7 @@ def control_mood() -> None:
             else:
                 current_mood = "DEPRESSED"
 
-        cat.ax.set_title(f"My Mood: {current_mood}")
+            cat.ax.set_title(f"My Mood: {current_mood}")
         time.sleep(MOOD_UPDATE_TIME)
 
 
@@ -121,55 +121,64 @@ def control_movement() -> None:
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
     pid = PID(control=c)
+    logger = logging.getLogger()
+
+    global current_face
+    global current_mood
 
     # TODO: Implement a timer to continue when stuck
     last_homing = time.time()
 
-    while True:
-        with mood_lock:
-            mood = current_mood
-        with face_lock:  # data shared with process()
-            x, y, frame_width, frame_height = (
-                current_face.x or 0,
-                current_face.y or 0,
-                current_face.frame_width,
-                current_face.frame_height,
-            )
-
-        if not current_face.is_detected():
-            c.stop()
-            c.led_off()
-        elif c.elbow_breach() or c.base_breach():
-            c.stop()
-            c.to_initial_position()
-            c.led_off()
-        else:
-            last_homing = time.time()
-            if mood == "EXCITED":
-                print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
-                c.led_on(40)
-                pid.move_control(x, y, frame_width, frame_height)
-            if mood == "RELAXED":
-                print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
-                c.led_on(20)
-                pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
-            if mood == "ANGRY":
-                print(
-                    f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
+    try:
+        while True:
+            with mood_lock:
+                mood = current_mood
+            with face_lock:  # data shared with process()
+                x, y, frame_width, frame_height, face_detected = (
+                    current_face.x or 0,
+                    current_face.y or 0,
+                    current_face.frame_width,
+                    current_face.frame_height,
+                    current_face.is_detected()
                 )
-                c.led_on(100)
-                pid.move_control(-x, -y, frame_width, frame_height)
-            if mood == "DEPRESSED":
-                print(
-                    f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
-                )
+            if not face_detected:
+                c.stop()
+                c.led_off()
 
-        if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
-            c.to_initial_position()
-            time.sleep(5)
-            last_homing = time.time()
+            current_position = c.current_position()
+            if c.elbow_breach(current_position) or c.base_breach(current_position):
+                c.stop()
+                c.to_initial_position()
+                c.led_off()
+            else:
+                last_homing = time.time()
+                if mood == "EXCITED":
+                    print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
+                    c.led_on(40)
+                    pid.move_control(x, y, frame_width, frame_height)
+                if mood == "RELAXED":
+                    print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
+                    c.led_on(20)
+                    pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
+                if mood == "ANGRY":
+                    print(
+                        f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
+                    )
+                    c.led_on(100)
+                    pid.move_control(-x, -y, frame_width, frame_height)
+                if mood == "DEPRESSED":
+                    print(
+                        f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
+                    )
 
-        time.sleep(MVMT_UPDATE_TIME)
+            if time.time() - last_homing > MAX_IDLE_TIME:  # not detecting for too long
+                c.to_initial_position()
+                time.sleep(5)
+                last_homing = time.time()
+
+            time.sleep(MVMT_UPDATE_TIME)
+    except Exception as e:
+        logger.exception(e)
 
 
 def process() -> None:
@@ -179,7 +188,7 @@ def process() -> None:
     """
 
     def face_coord_ratio_lower_than_threshold(
-        previous_face: Face, current_face: Face, threshold: float = 1.3
+        previous_face: Face, face: Face, threshold: float = 1.3
     ) -> bool:
         """
         Helper function. Designed for the purpose of ignoring face update
@@ -188,8 +197,8 @@ def process() -> None:
         Returns True if face did not move/change more
         than by the factor of threshold.
         """
-        current_x = current_face.x
-        current_y = current_face.y
+        current_x = face.x
+        current_y = face.y
         if current_x is None or current_y is None:  # just in case
             return False
         previous_x = previous_face.x or 1e-5  # avoid div by zero
