@@ -5,7 +5,7 @@ import numpy as np
 
 class Webcam(CameraBase):
     def __init__(self):
-        self.video_capture = cv2.VideoCapture(-1)
+        self.video_capture = cv2.VideoCapture(0)
         self.video_capture.set(
             cv2.CAP_PROP_FOURCC,
             cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')

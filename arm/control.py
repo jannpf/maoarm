@@ -136,12 +136,12 @@ def control_movement() -> None:
                     current_face.frame_height,
                     current_face.is_detected()
                 )
+            
+            current_position = c.current_position()
             if not face_detected:
                 c.stop()
                 c.led_off()
-
-            current_position = c.current_position()
-            if c.elbow_breach(current_position) or c.base_breach(current_position):
+            elif c.elbow_breach(current_position) or c.base_breach(current_position):
                 c.stop()
                 c.to_initial_position()
                 c.led_off()
