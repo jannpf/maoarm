@@ -13,86 +13,103 @@ from .detection.DetectionBase import DetectionBase
 from .camera.CameraBase import CameraBase
 
 
+# IP address to communicate data with
+CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# gesture recognition setup
+GESTURE_CONFIRMATION_THRESHOLD = 5
+GESTURE_TIMEOUT_FRAMES = 10
+gesture_buffer: dict = {}
+current_confirmed_gesture: str = "None"  # this name will be displayed on frame
+no_gesture_counter = 0
+
+
 def box_size(box: tuple[int, int, int, int]) -> float:
     lx, ly, rx, ry = box
     return (rx - lx) * (ry - ly)
 
 
-# get command line args
-parser = argparse.ArgumentParser(description="Face Detection Script")
-parser.add_argument(
-    "--camera",
-    type=str,
-    default="realsense",
-    choices=["webcam", "realsense"],
-    help="Camera source (default: realsense)",
-)
-parser.add_argument(
-    "--face_detection_algorithm",
-    type=str,
-    default="caffe",
-    choices=["caffe", "cascade"],
-    help="Face detection algorithm to use (default: caffe)",
-)
-args = parser.parse_args()
-print(f"Using camera: {args.camera}")
-print(f"Face detection algorithm: {args.face_detection_algorithm}")
+def parse_args() -> argparse.Namespace:
+    # get command line args
+    parser = argparse.ArgumentParser(description="Face Detection Script")
+    parser.add_argument(
+        "--camera",
+        type=str,
+        default="realsense",
+        choices=["webcam", "realsense"],
+        help="Camera source (default: realsense)",
+    )
+    parser.add_argument(
+        "--face_detection_algorithm",
+        type=str,
+        default="caffe",
+        choices=["caffe", "cascade"],
+        help="Face detection algorithm to use (default: caffe)",
+    )
+    args = parser.parse_args()
+    print(f"Using camera: {args.camera}")
+    print(f"Face detection algorithm: {args.face_detection_algorithm}")
+    return args
 
-# initialize camera
-camera: CameraBase
-if args.camera == "realsense":
-    if sys.platform == "darwin":
-        print("Realsense is not supported for MacOS, falling back to using webcam...")
+
+def initialize_camera(camera_arg: str) -> CameraBase:
+    if camera_arg == "realsense":
+        if sys.platform == "darwin":
+            print("Realsense is not supported for MacOS, falling back to using webcam...")
+            camera = Webcam.Webcam()
+        else:
+            from .camera import Realsense
+            camera = Realsense.RealsenseCamera()
+    elif camera_arg == "webcam":
         camera = Webcam.Webcam()
     else:
-        from .camera import Realsense
+        raise ValueError(f"Invalid camera type: {camera_arg}")
+    return camera
 
-        camera = Realsense.RealsenseCamera()
-elif args.camera == "webcam":
-    camera = Webcam.Webcam()
-else:
-    raise ValueError(f"Invalid camera type: {args.camera}")
+
+def face_detection_setup(face_detection_algorithm_arg: str) -> DetectionBase:
+    face_detector: DetectionBase
+    if face_detection_algorithm_arg == "caffe":
+        face_model_file = os.path.join(
+            BASE_DIR, "models", "res10_300x300_ssd_iter_140000.caffemodel"
+        )
+        face_config_file = os.path.join(BASE_DIR, "models", "deploy.prototxt")
+        face_detector = detection.CaffeFaces(face_model_file, face_config_file)
+    elif face_detection_algorithm_arg == "cascade":
+        face_model_file = os.path.join(
+            BASE_DIR, "models", "cascades", "haarcascade_frontalface_default.xml"
+        )
+        face_detector = detection.CascadeFaces(face_model_file)
+    else:
+        raise ValueError(
+            f"Invalid face detection algo type: {face_detection_algorithm_arg}"
+        )
+    return face_detector
+
+
+def gesture_recognition_setup() -> DetectionBase:
+    modelpath = os.path.join(BASE_DIR, "models", "gesture_recognizer.task")
+    gesture_recognizer = detection.MediapipeGestures(modelpath)
+    return gesture_recognizer
+
+
+# initial setup -----------------------------------------------------------------------
+
+args = parse_args()  # 2 args: camera and face_detection_algorithm
+camera = initialize_camera(args.camera)
+face_detector = face_detection_setup(args.face_detection_algorithm)
+gesture_recognizer = gesture_recognition_setup()
 
 frame_width: float = camera.frame_width()
 frame_height: float = camera.frame_height()
-
-# IP address to communicate data with
-conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-
-# face detection setup
-face_detector: DetectionBase
-if args.face_detection_algorithm == "caffe":
-    face_model_file = os.path.join(
-        base_dir, "models", "res10_300x300_ssd_iter_140000.caffemodel"
-    )
-    face_config_file = os.path.join(base_dir, "models", "deploy.prototxt")
-    face_detector = detection.CaffeFaces(face_model_file, face_config_file)
-elif args.face_detection_algorithm == "cascade":
-    face_model_file = os.path.join(
-        base_dir, "models", "cascades", "haarcascade_frontalface_default.xml"
-    )
-    face_detector = detection.CascadeFaces(face_model_file)
-else:
-    raise ValueError(
-        f"Invalid face detection algo type: {args.face_detection_algorithm}"
-    )
-
-# gesture recognition setup
-modelpath = os.path.join(base_dir, "models", "gesture_recognizer.task")
-gesture_recognizer = detection.MediapipeGestures(modelpath)
-
-GESTURE_CONFIRMATION_THRESHOLD = 5
-GESTURE_TIMEOUT_FRAMES = 10
-gesture_buffer: dict = {}
-current_confirmed_gesture: str = "None"
-no_gesture_counter = 0
 
 try:
     while True:
         # Capture frame-by-frame
         frame = camera.get_frame()
+
+        # detect faces ----------------------------------------------------------------
 
         # Face Detection, boxes with high confidence
         boxes: list = face_detector.detect(frame)  # type: ignore
@@ -121,10 +138,10 @@ try:
         else:
             face = Face.empty()
 
-        # recognize gestures------------------------------------------------------------------------
+        # recognize gestures -----------------------------------------------------------------------
 
-        gestures: dict = gesture_recognizer.detect(frame)
-        gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
+        gestures: dict = gesture_recognizer.detect(frame)  # type: ignore
+        gestures_sorted: list = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
             detected_gesture = gestures_sorted[-1][0]
@@ -164,9 +181,10 @@ try:
                 2,
             )
 
-        # send results
+        # send results and wrap up ----------------------------------------------------
+
         print((face, current_confirmed_gesture))
-        conn.send((face, current_confirmed_gesture))
+        CONN.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow("Video", frame)
@@ -180,5 +198,5 @@ try:
 except Exception as e:
     print(e)
 finally:
-    conn.send("close")
-    conn.close()
+    CONN.send("close")
+    CONN.close()
