@@ -35,8 +35,8 @@ class RealsenseCamera(CameraBase):
 
         return frame
 
-    def frame_width(self) -> float:
-        return self.width
+    def frame_width(self) -> int:
+        return int(self.width)
 
-    def frame_height(self) -> float:
+    def frame_height(self) -> int:
         return self.height

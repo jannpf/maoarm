@@ -19,8 +19,8 @@ class Webcam(CameraBase):
 
         return frame
 
-    def frame_width(self) -> float:
-        return self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+    def frame_width(self) -> int:
+        return int(self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 
-    def frame_height(self) -> float:
-        return self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    def frame_height(self) -> int:
+        return int(self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))

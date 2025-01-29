@@ -12,9 +12,9 @@ class CameraBase(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def frame_width(self) -> float:
+    def frame_width(self) -> int:
         pass
 
     @abc.abstractmethod
-    def frame_height(self) -> float:
+    def frame_height(self) -> int:
         pass
