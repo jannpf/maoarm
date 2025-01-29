@@ -1,4 +1,5 @@
 import abc
+import numpy as np
 
 
 class CameraBase(metaclass=abc.ABCMeta):
@@ -7,13 +8,13 @@ class CameraBase(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def get_frame(self):
+    def get_frame(self) -> np.ndarray:
         pass
 
-    @abc.property
-    def frame_width(self):
+    @abc.abstractmethod
+    def frame_width(self) -> float:
         pass
 
-    @abc.property
-    def frame_height(self):
+    @abc.abstractmethod
+    def frame_height(self) -> float:
         pass

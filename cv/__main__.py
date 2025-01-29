@@ -1,11 +1,16 @@
-import os
+import argparse
 from multiprocessing.connection import Client
+import os
+import sys
 
 import cv2
 
 from .face import Face
 from . import detection  # CaffeFaces, MediapipeGestures
-from .camera import Realsense
+from .camera import Webcam
+
+from .detection.DetectionBase import DetectionBase
+from .camera.CameraBase import CameraBase
 
 
 def box_size(box: tuple[int, int, int, int]) -> float:
@@ -13,25 +18,66 @@ def box_size(box: tuple[int, int, int, int]) -> float:
     return (rx - lx) * (ry - ly)
 
 
+# get command line args
+parser = argparse.ArgumentParser(description="Face Detection Script")
+parser.add_argument(
+    "--camera",
+    type=str,
+    default="realsense",
+    choices=["webcam", "realsense"],
+    help="Camera source (default: realsense)",
+)
+parser.add_argument(
+    "--face_detection_algorithm",
+    type=str,
+    default="caffe",
+    choices=["caffe", "cascade"],
+    help="Face detection algorithm to use (default: caffe)",
+)
+args = parser.parse_args()
+print(f"Using camera: {args.camera}")
+print(f"Face detection algorithm: {args.face_detection_algorithm}")
+
 # initialize camera
-camera = Realsense.RealsenseCamera()
-frame_width = camera.frame_width()
-frame_height = camera.frame_height()
+camera: CameraBase
+if args.camera == "realsense":
+    if sys.platform == "darwin":
+        print("Realsense is not supported for MacOS, falling back to using webcam...")
+        camera = Webcam.Webcam()
+    else:
+        from .camera import Realsense
+
+        camera = Realsense.RealsenseCamera()
+elif args.camera == "webcam":
+    camera = Webcam.Webcam()
+else:
+    raise ValueError(f"Invalid camera type: {args.camera}")
+
+frame_width: float = camera.frame_width()
+frame_height: float = camera.frame_height()
 
 # IP address to communicate data with
 conn = Client(("localhost", 6282))  # port in accordance with arm/control.py
 
-# face detection setup
-# TODO: enable command-line choice of detection algorithm
 base_dir = os.path.dirname(os.path.abspath(__file__))
-face_model_file = os.path.join(
-    base_dir,
-    "models",
-    "res10_300x300_ssd_iter_140000.caffemodel"
-)
 
-face_config_file = os.path.join(base_dir, "models", "deploy.prototxt")
-face_detector = detection.CaffeFaces(face_model_file, face_config_file)
+# face detection setup
+face_detector: DetectionBase
+if args.face_detection_algorithm == "caffe":
+    face_model_file = os.path.join(
+        base_dir, "models", "res10_300x300_ssd_iter_140000.caffemodel"
+    )
+    face_config_file = os.path.join(base_dir, "models", "deploy.prototxt")
+    face_detector = detection.CaffeFaces(face_model_file, face_config_file)
+elif args.face_detection_algorithm == "cascade":
+    face_model_file = os.path.join(
+        base_dir, "models", "cascades", "haarcascade_frontalface_default.xml"
+    )
+    face_detector = detection.CascadeFaces(face_model_file)
+else:
+    raise ValueError(
+        f"Invalid face detection algo type: {args.face_detection_algorithm}"
+    )
 
 # gesture recognition setup
 modelpath = os.path.join(base_dir, "models", "gesture_recognizer.task")
@@ -49,7 +95,7 @@ try:
         frame = camera.get_frame()
 
         # Face Detection, boxes with high confidence
-        boxes: list = face_detector.detect(frame)
+        boxes: list = face_detector.detect(frame)  # type: ignore
 
         # draw bounding boxes and get largest face
         # largest box will be last
@@ -60,8 +106,12 @@ try:
             lx, ly, rx, ry = box
             # Draw a rectangle around the faces
             cv2.rectangle(frame, (lx, ly), (rx, ry), (0, 255, 0), 2)
-            cv2.circle(frame, (int((lx + rx) / 2), int((ly + ry) / 2)),
-                       radius=3, color=(0, 0, 255))
+            cv2.circle(
+                frame,
+                (int((lx + rx) / 2), int((ly + ry) / 2)),
+                radius=3,
+                color=(0, 0, 255),
+            )
 
         # send largest face to control process
         if boxes_sorted:
@@ -89,7 +139,7 @@ try:
                 gesture_buffer[detected_gesture] += 1
             else:
                 # Reset buffer for new gesture
-                gesture_buffer = {detected_gesture: 1}  
+                gesture_buffer = {detected_gesture: 1}
         else:
             gesture_buffer = {}
 
