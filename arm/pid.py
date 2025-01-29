@@ -45,8 +45,9 @@ class PID:
     last_error_x: float = field(default=0.0, init=False)
     last_error_y: float = field(default=0.0, init=False)
 
-    start_time = time()
-    previous_time = 0
+    start_time: float = time()
+    current_time: float = 0.0
+    previous_time: float = 0.0
 
     def __post_init__(self):
         # Clear the content of the visualization file if it exists
@@ -74,8 +75,9 @@ class PID:
             width: Width of the frame/image.
             height: Height of the frame/image.
         """
-        current_time = time() - self.start_time
-        self.dt: float = current_time - self.previous_time
+        self.previous_time = self.current_time
+        self.current_time = time() - self.start_time
+        self.dt: float = self.current_time - self.previous_time
 
         # TODO: come up with "real" PID (take non-abs values)
         error_x = abs(target_x / (width / 2))  # not nice to take abs
@@ -95,7 +97,7 @@ class PID:
         d_x = self.kdx * (error_x - self.last_error_x) / self.dt
         d_y = self.kdy * (error_y - self.last_error_y) / self.dt
         self.last_error_x = error_x
-        self.last_error_y = error_x
+        self.last_error_y = error_y
 
         # PID output
         control_x = p_x + i_x + d_x
@@ -123,7 +125,7 @@ class PID:
 
         if self.record_visualization:
             entry = {
-                "time": round(current_time, 3),
+                "time": round(self.current_time, 3),
                 "target_x": target_x,
                 "target_y": target_y,
                 "error_x": error_x,
