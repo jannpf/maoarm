@@ -45,6 +45,8 @@ python3 -m arm.control
 python3 -m cv
 ```
 
+`python3 -m cv` supports different options for camera and face detection algorithm. Run `python3 -m cv --help` for details.
+
 ## Architecture overview
 [Link to editable pic](https://excalidraw.com/#json=YMj9FkYP01Mxj0f9aDgZH,iCZbDP2nFBiHpHw-pKpiCQ)
 

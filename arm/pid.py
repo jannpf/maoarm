@@ -35,7 +35,7 @@ class PID:
     kdy: float = 0.1
 
     min_output_x: int = 10
-    max_output_x: int = 30
+    max_output_x: int = 20
     min_output_y: int = 2
     max_output_y: int = 20
 
@@ -45,8 +45,7 @@ class PID:
     last_error_x: float = field(default=0.0, init=False)
     last_error_y: float = field(default=0.0, init=False)
 
-    start_time = time()
-    previous_time = 0
+    previous_time: float = 0
 
     def __post_init__(self):
         # Clear the content of the visualization file if it exists
@@ -74,8 +73,13 @@ class PID:
             width: Width of the frame/image.
             height: Height of the frame/image.
         """
-        current_time = time() - self.start_time
+        current_time = time()
         self.dt: float = current_time - self.previous_time
+        self.previous_time = current_time
+
+        # for first iteration, dt is not usable
+        if self.dt == current_time:
+            return
 
         # TODO: come up with "real" PID (take non-abs values)
         error_x = abs(target_x / (width / 2))  # not nice to take abs
@@ -95,7 +99,7 @@ class PID:
         d_x = self.kdx * (error_x - self.last_error_x) / self.dt
         d_y = self.kdy * (error_y - self.last_error_y) / self.dt
         self.last_error_x = error_x
-        self.last_error_y = error_x
+        self.last_error_y = error_y
 
         # PID output
         control_x = p_x + i_x + d_x
@@ -117,9 +121,6 @@ class PID:
             self.control.elbow_down(spdy)
         else:
             self.control.elbow_stop()
-
-        # reset shoulder as it tends to move
-        self.control.shoulder_to(0, spd=2, acc=2)
 
         if self.record_visualization:
             entry = {

@@ -121,11 +121,6 @@ def control_movement() -> None:
     c = AngleControl(ARM_ADDRESS)
     c.to_initial_position()
     pid = PID(control=c)
-    logger = logging.getLogger()
-
-    global current_face
-    global current_mood
-
     # TODO: Implement a timer to continue when stuck
     last_homing = time.time()
 
@@ -141,12 +136,12 @@ def control_movement() -> None:
                     current_face.frame_height,
                     current_face.is_detected()
                 )
+
+            current_position = c.current_position()
             if not face_detected:
                 c.stop()
                 c.led_off()
-
-            current_position = c.current_position()
-            if c.elbow_breach(current_position) or c.base_breach(current_position):
+            elif c.elbow_breach(current_position) or c.base_breach(current_position):
                 c.stop()
                 c.to_initial_position()
                 c.led_off()
@@ -201,8 +196,8 @@ def process() -> None:
         current_y = face.y
         if current_x is None or current_y is None:  # just in case
             return False
-        previous_x = previous_face.x or 1e-5  # avoid div by zero
-        previous_y = previous_face.y or 1e-5
+        previous_x = previous_face.x or 1  # avoid div by zero
+        previous_y = previous_face.y or 1
         ratio_x = 1 + abs((current_x - previous_x) / previous_x)
         ratio_y = 1 + abs((current_y - previous_y) / previous_y)
         ratio = max(ratio_x, ratio_y)
@@ -238,7 +233,7 @@ def process() -> None:
                 with face_lock:
                     current_face = Face.empty()
 
-            if gesture:
+            if gesture and gesture != "None":
                 with gesture_lock:  # shared with control_mood()
                     current_gesture = gesture
                 print(f"Gesture: {gesture}")
