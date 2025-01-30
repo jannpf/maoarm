@@ -17,7 +17,7 @@ from arm import AngleControl, PID, Cat
 WINDOW_SIZE = 5
 IPC_PORT = 6282
 ARM_ADDRESS = "192.168.4.1"
-MVMT_UPDATE_TIME = 0.015  # how often to check for current coord in seconds
+MVMT_UPDATE_TIME = 0.005  # how often to check for current coord in seconds
 MOOD_UPDATE_TIME = 1  # in seconds
 MAX_IDLE_TIME = 30  # max time without detection, seconds
 CHARACTER_FILE = "arm/cat_characters/spot.json"
@@ -149,19 +149,20 @@ def control_movement() -> None:
                 last_homing = time.time()
                 if mood == "EXCITED":
                     print(f"EXCITED to move to {x},{y}; ({frame_width}x{frame_height})")
-                    c.led_on(40)
+                    c.led_on(20)
                     pid.move_control(x, y, frame_width, frame_height)
                 if mood == "RELAXED":
                     print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
-                    c.led_on(20)
-                    pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
+                    c.led_on(10)
+                    pid.move_control(x, y, frame_width, frame_height)
                 if mood == "ANGRY":
                     print(
                         f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
                     )
-                    c.led_on(100)
+                    c.led_on(30)
                     pid.move_control(-x, -y, frame_width, frame_height)
                 if mood == "DEPRESSED":
+                    c.led_on(5)
                     print(
                         f"Too DEPRESSED to move to {x},{y}; ({frame_width}x{frame_height})"
                     )
