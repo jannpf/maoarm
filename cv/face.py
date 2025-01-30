@@ -16,12 +16,12 @@ class Face:
 
     def __init__(
         self,
-        lx: Optional[float],
-        ly: Optional[float],
-        rx: Optional[float],
-        ry: Optional[float],
-        width: float,
-        height: float,
+        lx: Optional[int],
+        ly: Optional[int],
+        rx: Optional[int],
+        ry: Optional[int],
+        width: int,
+        height: int,
     ):
         """
         Initialize a Face object.
@@ -64,12 +64,12 @@ class Face:
         box_h = ry - ly
 
         # Convert the coordinates so that (0, 0) is at the center of the frame
-        adjusted_lx = lx - self.frame_width / 2
-        adjusted_ly = ly - self.frame_height / 2
+        adjusted_lx = lx - self.frame_width // 2
+        adjusted_ly = ly - self.frame_height // 2
 
         # Calculate the center of the bounding box
-        center_x = adjusted_lx + box_w / 2
-        center_y = adjusted_ly + box_h / 2
+        center_x = adjusted_lx + box_w // 2
+        center_y = adjusted_ly + box_h // 2
 
         return (center_x, -center_y, box_w, box_h)
 
@@ -77,7 +77,7 @@ class Face:
         return all(value is not None for value in (self.x, self.y, self.w, self.h))
 
     @classmethod
-    def empty(cls, width: float = 0.0, height: float = 0.0) -> "Face":
+    def empty(cls, width: int = 0, height: int = 0) -> "Face":
         """
         Create an empty Face object with no coordinates.
 

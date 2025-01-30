@@ -134,7 +134,7 @@ try:
         if boxes_sorted:
             largest_face_coords = boxes_sorted[-1]
             lflx, lfly, lfrx, lfry = largest_face_coords
-            face = Face(lflx, lfly, lfrx, lfry, frame_width, frame_height)
+            face = Face(int(lflx), int(lfly), int(lfrx), int(lfry), int(frame_width), int(frame_height))
         else:
             face = Face.empty()
 
