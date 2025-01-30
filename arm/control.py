@@ -154,7 +154,7 @@ def control_movement() -> None:
                 if mood == "RELAXED":
                     print(f"RELAXED movement to {x},{y}; ({frame_width}x{frame_height})")
                     c.led_on(10)
-                    pid.move_control(x, y, frame_width, frame_height)
+                    pid.move_control(x * 0.8, y * 0.8, frame_width, frame_height)
                 if mood == "ANGRY":
                     print(
                         f"ANGRILY moving away from {x},{y}; ({frame_width}x{frame_height})"
