@@ -30,9 +30,9 @@ class PID:
     kpx: float = 80.0
     kpy: float = 12.0
     kix: float = 2
-    kiy: float = 0.5
-    kdx: float = 3
-    kdy: float = 1.5
+    kiy: float = 0.8
+    kdx: float = 2.8
+    kdy: float = 1
 
     min_output_x: int = 5
     max_output_x: int = 50
