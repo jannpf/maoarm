@@ -27,15 +27,19 @@ class PID:
     control: AngleControl
     record_visualization: bool = True
 
-    kpx: float = 60.0
+    # could use more testing in different conditions
+    # (lighting, crowds, distances)
+    # Also, added weight to the arm changes the behaviour more than initially 
+    # expected, especially due to more physical momentum of the "head"
+    kpx: float = 80.0
     kpy: float = 12.0
-    kix: float = 0.0  # I control does not make sense as error >= 0
-    kiy: float = 0.0  # I control does not make sense as error >= 0
-    kdx: float = 0.5
-    kdy: float = 0.1
+    kix: float = 2
+    kiy: float = 0.8
+    kdx: float = 2.8
+    kdy: float = 1
 
-    min_output_x: int = 10
-    max_output_x: int = 20
+    min_output_x: int = 5
+    max_output_x: int = 50
     min_output_y: int = 2
     max_output_y: int = 20
 
@@ -44,6 +48,11 @@ class PID:
     error_sum_y: float = field(default=0.0, init=False)
     last_error_x: float = field(default=0.0, init=False)
     last_error_y: float = field(default=0.0, init=False)
+
+    last_control_x: float = field(default=0.0, init=False)
+    last_control_y: float = field(default=0.0, init=False)
+
+    momentum: float = 0.2
 
     previous_time: float = 0
 
@@ -81,9 +90,9 @@ class PID:
         if self.dt == current_time:
             return
 
-        # TODO: come up with "real" PID (take non-abs values)
-        error_x = abs(target_x / (width / 2))  # not nice to take abs
-        error_y = abs(target_y / (height / 2))
+
+        error_x = target_x / (width / 2)
+        error_y = target_y / (height / 2)
 
         # Proportional term
         p_x = self.kpx * error_x
@@ -105,19 +114,34 @@ class PID:
         control_x = p_x + i_x + d_x
         control_y = p_y + i_y + d_y
 
-        # np.clip from min to max
-        spdx = min(max(int(control_x), self.min_output_x), self.max_output_x)
-        spdy = min(max(int(control_y), self.min_output_y), self.max_output_y)
 
-        if target_x > width / 20:
+        # momentum term (inspired by SGD) to prevent too sudden change
+        # only one previous value considered, jumps in I and D can cause faltering behaviour
+        control_x = self.last_control_x * self.momentum + (1 - self.momentum) * control_x
+        control_y = self.last_control_y * self.momentum + (1 - self.momentum) * control_y
+        
+        self.last_control_x = control_x
+        self.last_control_y = control_y
+
+        # since we are controlling the speed, take the abs output
+        # and clip from min to max
+        spdx = round(min(max(int(abs(control_x)), self.min_output_x), self.max_output_x), 3)
+        spdy = round(min(max(int(abs(control_y)), self.min_output_y), self.max_output_y), 3)
+
+        # decreased the ratios to get a swifter response after resting
+        # could use more testing in different conditions
+        # (lighting, crowds, distances)
+        # Also, added weight to the arm changes the behaviour more than initially 
+        # expected, especially due to more physical momentum of the "head"
+        if target_x > width / 30:
             self.control.base_cw(spdx)
-        elif target_x < - width / 20:
+        elif target_x < - width / 30:
             self.control.base_ccw(spdx)
         else:
             self.control.base_stop()
-        if target_y > height / 10:
+        if target_y > height / 15:
             self.control.elbow_up(spdy)
-        elif target_y < - height / 10:
+        elif target_y < - height / 15:
             self.control.elbow_down(spdy)
         else:
             self.control.elbow_stop()
@@ -163,13 +187,13 @@ def visualize(file=VISUALIZATION_FILE):
 
     # Extracting times and corresponding values
     fields = [
-        "target_x", "target_y",
-        "error_x", "error_y",
+        "target_x", "control_x",
+        "target_x", "spdx",
+        "target_y", "control_y",
+        "target_y", "spdy",
         "p_x", "p_y",
         "i_x", "i_y",
         "d_x", "d_y",
-        "control_x", "control_y",
-        "spdx", "spdy"
     ]
 
     times = [entry["time"] for entry in data]
@@ -184,11 +208,13 @@ def visualize(file=VISUALIZATION_FILE):
         field_x = fields[2 * i]
         field_y = fields[2 * i + 1]
         ax = axes[i]
+        ax2 = ax.twinx()
 
         ax.plot(times, values[field_x], label=f"{field_x}", linestyle="-", marker=None)
-        ax.plot(times, values[field_y], label=f"{field_y}", linestyle="-", marker=None)
+        ax2.plot(times, values[field_y], label=f"{field_y}", linestyle="-", color='orange', marker=None)
         ax.set_ylabel("Values")
-        ax.legend()
+        ax.legend(loc=0)
+        ax2.legend(loc=1)
         ax.grid(True)
 
         # Add dashed vertical lines at 5-second intervals
@@ -200,6 +226,6 @@ def visualize(file=VISUALIZATION_FILE):
 
     # Final plot adjustments
     axes[-1].set_xlabel("Time (seconds)")
-    plt.suptitle("Comparison of All Values Over Time")
+    plt.suptitle("PID Response")
     plt.tight_layout(rect=[0, 0, 1, 0.97])
     plt.show()
