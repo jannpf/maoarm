@@ -27,6 +27,10 @@ class PID:
     control: AngleControl
     record_visualization: bool = True
 
+    # could use more testing in different conditions
+    # (lighting, crowds, distances)
+    # Also, added weight to the arm changes the behaviour more than initially 
+    # expected, especially due to more physical momentum of the "head"
     kpx: float = 80.0
     kpy: float = 12.0
     kix: float = 2
@@ -110,9 +114,8 @@ class PID:
         control_x = p_x + i_x + d_x
         control_y = p_y + i_y + d_y
 
-        # np.clip from min to max
 
-        # momentum to prevent to sudden change
+        # momentum term (inspired by SGD) to prevent too sudden change
         # only one previous value considered, jumps in I and D can cause faltering behaviour
         control_x = self.last_control_x * self.momentum + (1 - self.momentum) * control_x
         control_y = self.last_control_y * self.momentum + (1 - self.momentum) * control_y
@@ -120,9 +123,16 @@ class PID:
         self.last_control_x = control_x
         self.last_control_y = control_y
 
+        # since we are controlling the speed, take the abs output
+        # and clip from min to max
         spdx = round(min(max(int(abs(control_x)), self.min_output_x), self.max_output_x), 3)
         spdy = round(min(max(int(abs(control_y)), self.min_output_y), self.max_output_y), 3)
 
+        # decreased the ratios to get a swifter response after resting
+        # could use more testing in different conditions
+        # (lighting, crowds, distances)
+        # Also, added weight to the arm changes the behaviour more than initially 
+        # expected, especially due to more physical momentum of the "head"
         if target_x > width / 30:
             self.control.base_cw(spdx)
         elif target_x < - width / 30:
