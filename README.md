@@ -2,13 +2,13 @@
 
 **Was wollt ihr denn?**  
   
-This repo contains code for controlling the movement of the robotic arm RoArm-M2-S based on the obtained computer vision data. In a cat-like way (whatever that is, we'll figure out).
+This repo contains code for controlling the movement of the robotic arm RoArm-M2-S based on the obtained computer vision data. In a cat-like way (this includes nasty character and a 3D-printed cat head).
 
-The idea of this project is to attach a camera to the robotic arm in order to recognize faces and gestures, and use this information to update the movement mode of the arm. The arm is originally designed to move the camera in the direction of the detected face, but also supports different movement modes, based on the current mood of the cat character. Yes, there is an underlying character defining the movement style :)
+The idea of this project is to attach a camera to the robotic arm to detect faces and gestures, and use this information to update the movement mode of the arm. Originally, the arm only moved the camera in the direction of the detected face. Now, the project also supports different movement modes, based on the current mood of the cat character. Yes, there is an underlying character defining the movement style :)
 
 **Current features**:
 * Cross-platform compatibility
-* PID-like movement control
+* PID movement control
 * Face and gesture recognition
 * Support of 2 face detection algorithms
 * Recognition of 7 gestures (including middle finger :sunglasses:)
@@ -27,16 +27,18 @@ The idea of this project is to attach a camera to the robotic arm in order to re
 * python3 (works best with 3.12) 
 
 #### Download and configure
-Clone repository and install dependencies:
+Clone repository, create venv and install dependencies:
 ```
-python3 -m pip install -r requirements.txt
+python3 -m venv venv
+source ./venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Basic usage
 
 1. Assemble and turn on the robotic arm.
 2. Connect to Wi-Fi `RoArm-M2` (password is 12345678).
-3. Place a webcam near robotic arm's LED and connect it to the computer.
+3. Place a webcam somewhere near robotic arm's LED and connect it to the computer.
 
 In 2 separate terminal windows, run the following scripts:
 
@@ -54,3 +56,35 @@ python3 -m cv
 
 ## Mood Impact of Gestures
 ![image](.assets/mood_impact_gestures.png)
+
+## Repo structure
+1. `arm` is a package for controlling the movement of the arm.
+2. `cv` is a package for computer vision stuff for face and gesture detection.
+
+Regenerate: 
+```
+tree -I ".git|venv|.gitignore|__pycache__|face_detection_julian" --dirsfirst --noreport -L 2
+```
+
+```py
+├── arm
+│   ├── cat_characters  # json files specifying gaussians for cat characters
+│   ├── scripts         # simple scripts to test arm's functionality, not project-related
+│   ├── ArmControl.py   # wrapper around HTTP commands to the arm
+│   ├── README.md
+│   ├── __init__.py
+│   ├── cat.py          # MCMC cat mood updates + visualization
+│   ├── control.py      # main script doing all the job
+│   ├── pid.py          # PID control of arm movement speed
+│   └── simulate.py     # misc
+├── cv
+│   ├── camera          # classes representing different camera types
+│   ├── detection       # classes representing different detection algorithms
+│   ├── models          # weights for implemented detection models
+│   ├── README.md
+│   ├── __init__.py
+│   ├── __main__.py     # main script doing all the job
+│   └── face.py         # data structure to abstract internal face representation
+├── README.md
+└── requirements.txt
+```
