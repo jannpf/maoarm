@@ -88,3 +88,14 @@ tree -I ".git|venv|.gitignore|__pycache__|face_detection_julian" --dirsfirst --n
 ├── README.md
 └── requirements.txt
 ```
+
+## Open issues and proposed features
+
+1. **Camera connectivity issues**. The project works well with simple webcams. Using more complex webcams or even specific platforms (e.g. a MacBook instead of a Windows laptop with WSL2) causes the python module `arm.control` to lose connection to the arm. The underlying reason for this remains unknown despite extensive testing.
+    > **Experimenting**: `arm.ArmControl` automatically keeps track of stats of HTTP requests to the arm. After running some code, you could visualize the stats by running `from arm.ArmControl import visualize; visualize()` in python REPL.
+2. Making use of [realsense SDK](https://github.com/jannpf/maoarm/pull/11) features. The project supports a cooler camera with a lot of additional functions and features, like depth detection. Unfortunately, the `realsense` python package only properly works on Linux/WSL2, as of this writing.
+3. Making PID more reliable by tuning the parameters with a 3D-printed head attached to the arm.
+    > **Experimenting**: set `record_visualization: bool = True` in `arm.pid` PID class. Run some actual face detection, this will write data to a file. You can then visualize the obtained data by running `from arm.pid import visualize; visualize()` in python REPL.
+4. Remembering faces and changing moods in accordance with this memory (should take informed consent into account).
+5. More gestures, more moods, more cat profiles.
+6. Getting the code to run with decent performance on Raspberry Pi.
