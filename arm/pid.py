@@ -168,7 +168,6 @@ class PID:
 
 
     def _append_to_json_file(self, entry: dict):
-        import json
         try:
             with open(VISUALIZATION_FILE, 'r+') as f:
                 data = json.load(f)
@@ -182,6 +181,8 @@ class PID:
 
 def visualize(file=VISUALIZATION_FILE):
     # Load data from file
+    if not VISUALIZATION_FILE.exists():
+        raise FileNotFoundError(f"No visualization file found: {VISUALIZATION_FILE.absolute()}")
     with open(file, 'r') as f:
         data = json.load(f)
 

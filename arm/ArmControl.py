@@ -3,10 +3,16 @@ Python wrapper around http commands for controlling robotic arm:
 https://www.waveshare.com/wiki/RoArm-M2-S_Robotic_Arm_Control
 """
 
-import requests
-import json
-import time
 import csv
+import json
+import requests
+import sys
+import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+
+HTTP_RESPONSE_VIZ_FILE = Path("response_log.csv")
 
 
 class BasicControl:
@@ -15,7 +21,7 @@ class BasicControl:
         self.session: requests.Session = requests.session()
         self.timestamps = []
         self.response_times = []
-        self.log_file = "response_log.csv"
+        self.log_file = HTTP_RESPONSE_VIZ_FILE
         # Initialize the log file with headers
         with open(self.log_file, "w", newline="") as file:
             writer = csv.writer(file)
@@ -27,11 +33,15 @@ class BasicControl:
 
         try:
             response = self.session.get(url, timeout=(1, 3))
-            response_time = time.time() - current_time  # Fixed bug
+            response_time = time.time() - current_time
             response_text = response.text
+        # TODO: test how we can gracefully exit
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {e}")
-            response_time = -1  # Mark failed requests with -1
+            response_time = time.time() - current_time
+            self.timestamps.append(current_time)
+            self.response_times.append(response_time)
+            return "ERROR"
 
         # Store data
         self.timestamps.append(current_time)
@@ -42,14 +52,14 @@ class BasicControl:
             writer = csv.writer(file)
             writer.writerow([current_time, response_time])
 
-        return response_text if response_time != -1 else "ERROR"
+        return response_text
 
     def current_position(self) -> dict:
         command = {"T": 105}
         coord_str = self.run_and_get_response(json.dumps(command))
         return json.loads(coord_str)
 
-    def torque_limit():
+    def torque_limit(self):
         raise NotImplementedError()
 
     def reset(self):
@@ -176,29 +186,28 @@ class AngleControl(BasicControl):
         self.run_and_get_response(json.dumps(command))
 
 
-import matplotlib.pyplot as plt
-
-def visualize_from_csv(log_file="response_log.csv"):
+def visualize(log_file: Path = HTTP_RESPONSE_VIZ_FILE):
     """Loads timestamp and response time data from a CSV file and visualizes it."""
-    
+
     timestamps = []
     response_times = []
+
+    if not log_file.exists():
+        print(f"Error: File '{log_file.absolute()}' not found.")
+        return
 
     # Load data from CSV
     try:
         with open(log_file, "r") as file:
             reader = csv.reader(file)
             next(reader)  # Skip header
-            
+
             for row in reader:
                 timestamps.append(float(row[0]))
                 response_times.append(float(row[1]))
 
-    except FileNotFoundError:
-        print(f"Error: File '{log_file}' not found.")
-        return
     except ValueError:
-        print("Error: Invalid data format in CSV.")
+        print(f"Error: Invalid data format in {log_file.absolute()}.")
         return
 
     if not timestamps:
