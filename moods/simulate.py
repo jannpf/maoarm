@@ -6,11 +6,11 @@ import json
 import sys
 import select
 import re
-from arm import Cat
+from moods import Cat
 
 import matplotlib.pyplot as plt
 
-cat_characteristics = json.load(open("arm/cat_characters/spot.json", "r"))
+cat_characteristics = json.load(open("moods/cat_characters/spot.json", "r"))
 gaussians = cat_characteristics["gaussians"]
 
 
