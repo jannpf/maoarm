@@ -15,7 +15,7 @@ from camera.CameraBase import CameraBase
 
 
 # IP address to communicate data with
-#CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
+CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # gesture recognition setup
