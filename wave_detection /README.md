@@ -10,9 +10,9 @@ This file detects hand wave gestures using MediaPipe and OpenCV. It tracks hand 
 
 ## ⚙️ Configuration
 You can adjust these in the MediapipeWaves class constructor:
-wave_frames_window = 30             # Number of frames to check for wave
-wave_movement_threshold = 0.05      # Minimum movement needed for a wave
-max_history_length = 50              # How much history to keep
+- wave_frames_window = 30             # Number of frames to check for wave
+- wave_movement_threshold = 0.05      # Minimum movement needed for a wave
+- max_history_length = 50              # How much history to keep
 
 ## 🚀 How to Run
 Run the wave_detection script.
