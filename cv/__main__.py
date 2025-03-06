@@ -196,7 +196,7 @@ try:
         # send results and wrap up ----------------------------------------------------
 
         print((face, current_confirmed_gesture))
-        #CONN.send((face, current_confirmed_gesture))
+        CONN.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow("Video", frame)
