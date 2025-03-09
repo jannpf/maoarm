@@ -3,21 +3,15 @@ import mediapipe as mp
 import sys
 
 class MediapipeWaves:
-    def __init__(self, wave_frames_window=30, wave_movement_threshold=0.05, max_history_length=50):
+    def __init__(self, hands, wave_frames_window=30, wave_movement_threshold=0.05, max_history_length=50):
+        self.hands = hands
         self.wave_frames_window = wave_frames_window
         self.wave_movement_threshold = wave_movement_threshold
-        self.max_history_length = max_history_length  # Limit for history length
+        self.max_history_length = max_history_length
         self.right_hand_x_history = []
         self.left_hand_x_history = []
-        self.missing_hand_frames = {"right": 0, "left": 0}  # Track frames with no hand
+        self.missing_hand_frames = {"right": 0, "left": 0}  
 
-        self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
-            max_num_hands=2,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
-        )
         self.mp_draw = mp.solutions.drawing_utils
 
     def detect(self, frame) -> dict:
@@ -38,35 +32,26 @@ class MediapipeWaves:
                 else:
                     left_hand_landmarks = lm_list
 
-                self.mp_draw.draw_landmarks(
-                    frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS
-                )
+                self.mp_draw.draw_landmarks(frame, hand_landmarks, mp.solutions.hands.HAND_CONNECTIONS)
 
-        # Handle right hand
+        # Process hand movement
         if right_hand_landmarks:
-            self.missing_hand_frames["right"] = 0  # Reset missing frames counter
+            self.missing_hand_frames["right"] = 0
             wrist_x = right_hand_landmarks[0][0]
-            print(f"Right wrist x: {wrist_x}")
             self._track_hand_x(self.right_hand_x_history, wrist_x)
             if self.detect_wave(self.right_hand_x_history):
-                print("Right hand wave detected!")
                 result["right_wave"] = 1.0
         else:
             self._handle_missing_hand("right")
 
-        # Handle left hand
         if left_hand_landmarks:
-            self.missing_hand_frames["left"] = 0  # Reset missing frames counter
+            self.missing_hand_frames["left"] = 0
             wrist_x = left_hand_landmarks[0][0]
-            print(f"Left wrist x: {wrist_x}")
             self._track_hand_x(self.left_hand_x_history, wrist_x)
             if self.detect_wave(self.left_hand_x_history):
-                print("Left hand wave detected!")
                 result["left_wave"] = 1.0
         else:
             self._handle_missing_hand("left")
-
-        print(f"Hand detection results: {results.multi_hand_landmarks}")
 
         return result
 
@@ -132,7 +117,7 @@ class MediapipeWaves:
         history_list.append(x_normalized)
 
         print(f"Updated history: {history_list[-10:]}")  # Print last 10 values
-        
+
         if len(history_list) > self.max_history_length:  # Limit history size
             history_list.pop(0)
 

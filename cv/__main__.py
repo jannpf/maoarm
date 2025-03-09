@@ -1,6 +1,7 @@
 import os
 import cv2
 import sys
+import mediapipe as mp
 import argparse
 
 from multiprocessing.connection import Client
@@ -22,6 +23,15 @@ GESTURE_TIMEOUT_FRAMES = 10
 gesture_buffer: dict = {}
 current_confirmed_gesture: str = "None"  # this name will be displayed on frame
 no_gesture_counter = 0
+
+# MediaPipe Hands: Create ONE shared instance
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=2,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
 
 
 def box_size(box: tuple[int, int, int, int]) -> float:
@@ -86,20 +96,22 @@ def face_detection_setup(face_detection_algorithm_arg: str) -> DetectionBase:
         )
     return face_detector
 
-
 def gesture_recognition_setup() -> DetectionBase:
     modelpath = os.path.join(BASE_DIR, "models", "gesture_recognizer.task")
-    gesture_recognizer = detection.MediapipeGestures(modelpath)
+    print(f"Model path: {modelpath}")  # Add this to verify if the path is being passed correctly
+    
+    gesture_recognizer = detection.MediapipeGestures(modelpath, hands)
     return gesture_recognizer
-
 
 # initial setup -----------------------------------------------------------------------
 
 args = parse_args()  # 2 args: camera and face_detection_algorithm
 camera = initialize_camera(args.camera)
 face_detector = face_detection_setup(args.face_detection_algorithm)
+
+# Use the shared hands instance for both gesture and wave detection
 gesture_recognizer = gesture_recognition_setup()
-wave_recognizer = MediapipeWaves()
+wave_recognizer = MediapipeWaves(hands)
 
 frame_width: float = camera.frame_width()
 frame_height: float = camera.frame_height()

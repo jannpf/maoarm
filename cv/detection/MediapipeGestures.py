@@ -1,26 +1,20 @@
 from .DetectionBase import DetectionBase
 
 import math
-
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-
 import cv2
 
-
 class MediapipeGestures(DetectionBase):
-    def __init__(self, modelpath):
+    def __init__(self, modelpath, hands):
         # Configure Gesture Recognizer
         self.base_options = python.BaseOptions(model_asset_path=modelpath)
         self.gesture_options = vision.GestureRecognizerOptions(base_options=self.base_options)
         self.gesture_recognizer = vision.GestureRecognizer.create_from_options(self.gesture_options)
 
-        # Initialize MediaPipe Hands for landmarks
-        self.mp_hands = mp.solutions.hands
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False, max_num_hands=1, min_detection_confidence=0.5
-        )
+        # Use the shared MediaPipe Hands instance
+        self.hands = hands  # Shared instance instead of creating a new one
         self.mp_draw = mp.solutions.drawing_utils
 
     @staticmethod
