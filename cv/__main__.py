@@ -12,7 +12,7 @@ from . import detection
 from .camera import Webcam
 
 # IP address to communicate data with
-#CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
+CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # gesture recognition setup
@@ -183,7 +183,7 @@ try:
         # send results and wrap up ----------------------------------------------------
 
         print((face, current_confirmed_gesture))
-        #CONN.send((face, current_confirmed_gesture))
+        CONN.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow("Video", frame)
@@ -196,6 +196,6 @@ try:
     cv2.destroyAllWindows()
 except Exception as e:
     print(e)
-#finally:
-   # CONN.send("close")
-   # CONN.close()
+finally:
+    CONN.send("close")
+    CONN.close()
