@@ -14,7 +14,7 @@ from . import detection
 from .camera import Webcam
 
 # IP address to communicate data with
-#CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
+CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # gesture recognition setup
@@ -153,27 +153,6 @@ try:
 
         # recognize gestures -----------------------------------------------------------------------
 
-        # gestures: dict = gesture_recognizer.detect(frame)  # type: ignore
-        # gestures_sorted: list = sorted(gestures.items(), key=lambda x: x[1])
-
-        # if wave_detector.detect_wave(wave_detector.right_hand_x_history):
-        #     detected_gesture = "Right Wave"
-        # elif wave_detector.detect_wave(wave_detector.left_hand_x_history):
-        #     detected_gesture = "Left Wave"
-        # elif gestures:
-        #     detected_gesture = max(gestures, key=gestures.get)
-        # else:
-        #     detected_gesture = None
-
-        # if gestures_sorted:
-        #     detected_gesture = gestures_sorted[-1][0]
-        #     no_gesture_counter = 0  # Reset counter since a gesture is detected
-        # else:
-        #     detected_gesture = None
-        #     no_gesture_counter += 1
-
-        ############################################################
-
         gestures = gesture_recognizer.detect(frame)
         waves = wave_recognizer.detect(frame)
 
@@ -183,14 +162,12 @@ try:
         gestures_sorted = sorted(combined_gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
+            print(f"gestures detected: {gestures_sorted}")
             detected_gesture = gestures_sorted[-1][0]
             no_gesture_counter = 0  # Reset counter since a gesture is detected
         else:
             detected_gesture = None
             no_gesture_counter += 1
-
-
-        #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
         # Update gesture buffer
         if detected_gesture:
@@ -226,7 +203,7 @@ try:
         # send results and wrap up ----------------------------------------------------
 
         print((face, current_confirmed_gesture))
-        #CONN.send((face, current_confirmed_gesture))
+        CONN.send((face, current_confirmed_gesture))
 
         # Display the resulting frame
         cv2.imshow("Video", frame)
@@ -239,6 +216,6 @@ try:
     cv2.destroyAllWindows()
 except Exception as e:
     print(e)
-#finally:
-    #CONN.send("close")
-    #CONN.close()
+finally:
+    CONN.send("close")
+    CONN.close()
