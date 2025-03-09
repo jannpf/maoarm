@@ -12,7 +12,8 @@ from collections import deque
 from multiprocessing.connection import Listener
 
 from cv.face import Face
-from arm import AngleControl, PID, Cat
+from arm import AngleControl, PID
+from moods import Cat
 
 WINDOW_SIZE = 5
 IPC_PORT = 6282
@@ -20,7 +21,7 @@ ARM_ADDRESS = "192.168.4.1"
 MVMT_UPDATE_TIME = 0.005  # how often to check for current coord in seconds
 MOOD_UPDATE_TIME = 1  # in seconds
 MAX_IDLE_TIME = 30  # max time without detection, seconds
-CHARACTER_FILE = "arm/cat_characters/spot.json"
+CHARACTER_FILE = "moods/cat_characters/spot.json"
 
 data_queue: queue.Queue = queue.Queue(maxsize=100)
 

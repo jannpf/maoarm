@@ -55,6 +55,7 @@ class PID:
     momentum: float = 0.2
 
     previous_time: float = 0
+    dt: float = 0
 
     def __post_init__(self):
         # Clear the content of the visualization file if it exists
@@ -83,13 +84,12 @@ class PID:
             height: Height of the frame/image.
         """
         current_time = time()
-        self.dt: float = current_time - self.previous_time
+        self.dt = current_time - self.previous_time
         self.previous_time = current_time
 
         # for first iteration, dt is not usable
         if self.dt == current_time:
             return
-
 
         error_x = target_x / (width / 2)
         error_y = target_y / (height / 2)
@@ -168,7 +168,6 @@ class PID:
 
 
     def _append_to_json_file(self, entry: dict):
-        import json
         try:
             with open(VISUALIZATION_FILE, 'r+') as f:
                 data = json.load(f)
@@ -182,6 +181,8 @@ class PID:
 
 def visualize(file=VISUALIZATION_FILE):
     # Load data from file
+    if not VISUALIZATION_FILE.exists():
+        raise FileNotFoundError(f"No visualization file found: {VISUALIZATION_FILE.absolute()}")
     with open(file, 'r') as f:
         data = json.load(f)
 
