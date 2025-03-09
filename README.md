@@ -60,6 +60,7 @@ python3 -m cv
 ## Repo structure
 1. `arm` is a package for controlling the movement of the arm.
 2. `cv` is a package for computer vision stuff for face and gesture detection.
+3. `moods` is a package for simulating the mood and behaviour of the arm.
 
 Regenerate: 
 ```
@@ -68,23 +69,26 @@ tree -I ".git|venv|.gitignore|__pycache__|face_detection_julian" --dirsfirst --n
 
 ```py
 ├── arm
-│   ├── cat_characters  # json files specifying gaussians for cat characters
-│   ├── scripts         # simple scripts to test arm's functionality, not project-related
-│   ├── ArmControl.py   # wrapper around HTTP commands to the arm
+│   ├── scripts/         # simple scripts to test arm's functionality, not project-related
+│   ├── ArmControl.py    # wrapper around HTTP commands to the arm
 │   ├── README.md
 │   ├── __init__.py
-│   ├── cat.py          # MCMC cat mood updates + visualization
-│   ├── control.py      # main script doing all the job
-│   ├── pid.py          # PID control of arm movement speed
-│   └── simulate.py     # misc
+│   ├── control.py       # main script doing all the job
+│   └── pid.py           # PID control of arm movement speed
 ├── cv
-│   ├── camera          # classes representing different camera types
-│   ├── detection       # classes representing different detection algorithms
-│   ├── models          # weights for implemented detection models
+│   ├── camera/          # classes representing different camera types
+│   ├── detection/       # classes representing different detection algorithms
+│   ├── models           # weights for implemented detection models
 │   ├── README.md
 │   ├── __init__.py
-│   ├── __main__.py     # main script doing all the job
-│   └── face.py         # data structure to abstract internal face representation
+│   ├── __main__.py      # main script doing all the job
+│   └── face.py          # data structure to abstract internal face representation
+├── moods
+│   ├── cat_characters/  # json files specifying gaussians for cat characters
+│   ├── README.md
+│   ├── __init__.py
+│   ├── cat.py           # MCMC cat mood updates + visualization
+│   └── simulate.py      # misc script to test simulation behaviour
 ├── README.md
 └── requirements.txt
 ```

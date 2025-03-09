@@ -8,15 +8,10 @@ A python package for controlling the movement of the arm. Overview of the main m
 2. `ArmControl.py`
     * Contains basic movement commands
     * Is a python wrapper over HTTP interface of the arm
-3. `cat.py`
-    * Defines an interface for the cat behaviour (initial "character" based on params for gaussians)
-    * Initializes methods to update cat moods based on gestures
-    * Contains mood visualization code
-4. `pid.py`
+3. `pid.py`
     * Defines a PID controller for movement
     * Optionally (enabled by default) writes current PID error terms to a file
     * Also contains corresponding visualization code in a separate function
-    * WARNING: current implementation uses an absolute error term, which deviates from PID in a "classic" sense
 
 ## Some notes on movement
 
