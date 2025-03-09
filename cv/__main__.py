@@ -24,16 +24,6 @@ gesture_buffer: dict = {}
 current_confirmed_gesture: str = "None"  # this name will be displayed on frame
 no_gesture_counter = 0
 
-# MediaPipe Hands: Create ONE shared instance
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(
-    static_image_mode=False,
-    max_num_hands=2,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
-
-
 def box_size(box: tuple[int, int, int, int]) -> float:
     lx, ly, rx, ry = box
     return (rx - lx) * (ry - ly)
@@ -98,9 +88,7 @@ def face_detection_setup(face_detection_algorithm_arg: str) -> DetectionBase:
 
 def gesture_recognition_setup() -> DetectionBase:
     modelpath = os.path.join(BASE_DIR, "models", "gesture_recognizer.task")
-    print(f"Model path: {modelpath}")  # Add this to verify if the path is being passed correctly
-    
-    gesture_recognizer = detection.MediapipeGestures(modelpath, hands)
+    gesture_recognizer = detection.MediapipeGestures(modelpath)
     return gesture_recognizer
 
 # initial setup -----------------------------------------------------------------------
@@ -111,7 +99,6 @@ face_detector = face_detection_setup(args.face_detection_algorithm)
 
 # Use the shared hands instance for both gesture and wave detection
 gesture_recognizer = gesture_recognition_setup()
-wave_recognizer = MediapipeWaves(hands)
 
 frame_width: float = camera.frame_width()
 frame_height: float = camera.frame_height()
@@ -154,12 +141,7 @@ try:
         # recognize gestures -----------------------------------------------------------------------
 
         gestures = gesture_recognizer.detect(frame)
-        waves = wave_recognizer.detect(frame)
-
-        print(f"Waves detected: {waves}")
-
-        combined_gestures = {**gestures, **waves}
-        gestures_sorted = sorted(combined_gestures.items(), key=lambda x: x[1])
+        gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
             print(f"gestures detected: {gestures_sorted}")
@@ -168,6 +150,8 @@ try:
         else:
             detected_gesture = None
             no_gesture_counter += 1
+
+        #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
         # Update gesture buffer
         if detected_gesture:
