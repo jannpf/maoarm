@@ -1,0 +1,53 @@
+{
+    "gaussians": [
+        {
+            "weight": 0.40,
+            "mu": [
+                0.5,
+                0.5
+            ],
+            "sigma_x": 0.25,
+            "sigma_y": 0.25,
+            "rho": 0.5
+        },
+        {
+            "weight": 0.2,
+            "mu": [
+                -0.5,
+                0.5
+            ],
+            "sigma_x": 0.2,
+            "sigma_y": 0.2,
+            "rho": -0.5
+        },
+        {
+            "weight": 0.2,
+            "mu": [
+                -0.5,
+                -0.5
+            ],
+            "sigma_x": 0.2,
+            "sigma_y": 0.2,
+            "rho": 0.5
+        },
+        {
+            "weight": 0.2,
+            "mu": [
+                0.5,
+                -0.5
+            ],
+            "sigma_x": 0.2,
+            "sigma_y": 0.2,
+            "rho": -0.5
+        }
+    ],
+    "gesture_impact": {
+        "Thumb_Up": [0.3, -0.1],
+        "Thumb_Down": [-0.3, -0.1],
+        "Closed_Fist": [-0.4, 0.2],
+        "Open_Palm": [0.2, 0.4],
+        "middle_finger": [-0.6, 0.6],
+        "Victory": [0.4, 0.3],
+        "Pointing_Up": [-0.1, 0.4]
+    }
+}
