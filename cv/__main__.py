@@ -1,17 +1,15 @@
-import argparse
-from multiprocessing.connection import Client
 import os
-import sys
-
 import cv2
+import sys
+import argparse
 
-from .face import Face
-from . import detection  # CaffeFaces, MediapipeGestures
-from .camera import Webcam
-
+from multiprocessing.connection import Client
 from .detection.DetectionBase import DetectionBase
 from .camera.CameraBase import CameraBase
 
+from .face import Face
+from . import detection
+from .camera import Webcam
 
 # IP address to communicate data with
 CONN = Client(("localhost", 6282))  # port in accordance with arm/control.py
@@ -23,7 +21,6 @@ GESTURE_TIMEOUT_FRAMES = 10
 gesture_buffer: dict = {}
 current_confirmed_gesture: str = "None"  # this name will be displayed on frame
 no_gesture_counter = 0
-
 
 def box_size(box: tuple[int, int, int, int]) -> float:
     lx, ly, rx, ry = box
@@ -87,18 +84,18 @@ def face_detection_setup(face_detection_algorithm_arg: str) -> DetectionBase:
         )
     return face_detector
 
-
 def gesture_recognition_setup() -> DetectionBase:
     modelpath = os.path.join(BASE_DIR, "models", "gesture_recognizer.task")
     gesture_recognizer = detection.MediapipeGestures(modelpath)
     return gesture_recognizer
-
 
 # initial setup -----------------------------------------------------------------------
 
 args = parse_args()  # 2 args: camera and face_detection_algorithm
 camera = initialize_camera(args.camera)
 face_detector = face_detection_setup(args.face_detection_algorithm)
+
+# Use the shared hands instance for both gesture and wave detection
 gesture_recognizer = gesture_recognition_setup()
 
 frame_width: float = camera.frame_width()
@@ -108,6 +105,7 @@ try:
     while True:
         # Capture frame-by-frame
         frame = camera.get_frame()
+        #frame = wave_recognizer.process_frame(frame)
 
         # detect faces ----------------------------------------------------------------
 
@@ -140,10 +138,11 @@ try:
 
         # recognize gestures -----------------------------------------------------------------------
 
-        gestures: dict = gesture_recognizer.detect(frame)  # type: ignore
-        gestures_sorted: list = sorted(gestures.items(), key=lambda x: x[1])
+        gestures = gesture_recognizer.detect(frame)
+        gestures_sorted = sorted(gestures.items(), key=lambda x: x[1])
 
         if gestures_sorted:
+            print(f"gestures detected: {gestures_sorted}")
             detected_gesture = gestures_sorted[-1][0]
             no_gesture_counter = 0  # Reset counter since a gesture is detected
         else:

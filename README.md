@@ -11,7 +11,7 @@ The idea of this project is to attach a camera to the robotic arm to detect face
 * PID movement control
 * Face and gesture recognition
 * Support of 2 face detection algorithms
-* Recognition of 7 gestures (including middle finger :sunglasses:)
+* Recognition of 8 gestures (including wave and middle finger :sunglasses:)
 * 4 movement modes (relaxed, excited, depressed, angry)
 * Cat mood system to control movement modes:
     * Automatic random updates of the current mood based on Markov chain Monte Carlo (MCMC) approach
