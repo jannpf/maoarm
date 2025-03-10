@@ -167,3 +167,5 @@ cython_debug/
 *.py-E
 "face_detection_julian/yolov7/"
 .DS_Store
+interim_values.json
+response_log.csv
