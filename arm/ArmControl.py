@@ -41,7 +41,7 @@ class BasicControl:
             response_time = time.time() - current_time
             self.timestamps.append(current_time)
             self.response_times.append(response_time)
-            return "ERROR"
+            return '{"response": "ERROR"}'  # string should be json-compatible
 
         # Store data
         self.timestamps.append(current_time)
