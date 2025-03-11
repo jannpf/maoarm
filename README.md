@@ -56,6 +56,7 @@ python3 -m cv
 
 ## Mood Impact of Gestures
 ![image](.assets/mood_impact_gestures.png)
+(script to update this image is provided in `.assets/GenerateMoodImpactOverview.py`)
 
 ## Repo structure
 1. `arm` is a package for controlling the movement of the arm.
