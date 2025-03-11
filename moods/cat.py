@@ -53,7 +53,7 @@ class Cat:
         """
         w = g["weight"]
         mx, my = g["mu"]
-        sx, sy = g["sigma_x"], g["sigma_y"]
+        sx, sy = g["sigma"]
 
         # gaussian exponent (without constant factors - irrelevant for MH)
         dx = (x - mx) ** 2 / (2 * sx**2)
@@ -70,7 +70,7 @@ class Cat:
         """
         w = g["weight"]
         mx, my = g["mu"]
-        sx, sy = g["sigma_x"], g["sigma_y"]
+        sx, sy = g["sigma"]
         rho = g["rho"]
 
         # Translate point by mean
@@ -294,7 +294,7 @@ class Cat:
         # plot 1,2,3 sigma contour lines for all the configured gaussians
         for g in self.gaussians:
             mx, my = g["mu"]
-            sx, sy = g["sigma_x"], g["sigma_y"]
+            sx, sy = g["sigma"]
             rho = g["rho"]
             self.plot_gaussian(self.ax, mx, my, sx, sy, rho)
 
