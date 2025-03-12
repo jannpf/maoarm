@@ -56,6 +56,7 @@
         "Open_Palm": [0.2, 0.4],
         "middle_finger": [-0.6, 0.6],
         "Victory": [0.4, 0.3],
-        "Pointing_Up": [-0.1, 0.4]
+        "Pointing_Up": [-0.1, 0.4],
+        "Wave": [0.5, -0.3]
     }
 }
