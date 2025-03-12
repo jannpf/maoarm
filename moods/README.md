@@ -10,10 +10,13 @@ This python package provides the mood functionality, including random mood drift
     * simulate the mood drift for a given profile and visualize it
     * while running, it accepts mood offsets as cmdline parameters to simulate gestures
     * overrides need to be passed as tuples, e.g. (-0.5, 0.5) for offsetting the current mood with -0.5 valence and +0.5 arousal
-
+    * run from root dir with 
+        ```
+        python3 -m moods.simulate
+        ```
 ## Mood drift
 
-- Emotional model (state is defined by valence and arousal, hence the mood state can be modeled as point in this two-dimensional space)
+- The circumplex model of emotion is used to model the mood of the cat. The mood state is defined by valence and arousal, which pose orthogonal axes allowing each mood state to be represented as point in this 2d space
 - These two variables drift randomly across this mood space
 - The mood drift should not be arbitrary, since too high fluctuations are undesired, but rather low frequency drifts, where the current mood also depends on previous states
 - Markov Chains are well suited for modeling this dependent behaviour + Monte-Carlo for randomness -> MCMC
