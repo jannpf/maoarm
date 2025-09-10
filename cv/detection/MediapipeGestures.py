@@ -31,6 +31,15 @@ class MediapipeGestures(DetectionBase):
         self.wave_counter = 0  # Counter to track persistence duration
         self.min_movement_distance = 0.02  # Minimum x-movement required to count as a valid direction change
 
+        #--------------------------------------------------
+        self.bowl_hold_frames = 8        # ~0.25 s @30fps
+        self.finger_angle_tol_deg = 18   # how similar the 4 finger angles must be
+        self.horiz_tol_deg = 25          # wrist->tips angle w.r.t. x-axis
+        self.bowl_streak = 0
+
+
+
+
     @staticmethod
     def calculate_angle(a, b, c) -> float:
         """
@@ -46,6 +55,49 @@ class MediapipeGestures(DetectionBase):
             return 0
         angle = math.acos(dot_product / (magnitude_ab * magnitude_bc))
         return math.degrees(angle)
+    
+    def _bowl_detect(self, lm) -> bool:
+        H = self.mp_hands.HandLandmark
+
+        # four fingers: (MCP, TIP)
+        fingers = [
+            (H.INDEX_FINGER_MCP,  H.INDEX_FINGER_TIP),
+            (H.MIDDLE_FINGER_MCP, H.MIDDLE_FINGER_TIP),
+            (H.RING_FINGER_MCP,   H.RING_FINGER_TIP),
+            (H.PINKY_MCP,         H.PINKY_TIP),
+        ]
+
+        # angles of MCP->TIP vectors (in degrees, image coords)
+        angs = []
+        tips_xy = []
+        tips_above = 0
+        for mcp_id, tip_id in fingers:
+            m = lm[mcp_id]; t = lm[tip_id]
+            vx, vy = (t.x - m.x), (t.y - m.y)
+            angs.append(math.degrees(math.atan2(vy, vx)))  # [-180, 180]
+            tips_xy.append((t.x, t.y))
+            if t.y < m.y:  # tip above MCP in image coords
+                tips_above += 1
+
+        # 1) parallel fingers: angles close to their mean (circular mean)
+        mean_ang = math.degrees(math.atan2(
+            sum(math.sin(math.radians(a)) for a in angs),
+            sum(math.cos(math.radians(a)) for a in angs)
+        ))
+        parallel_ok = all(abs(((a - mean_ang + 180) % 360) - 180) <= self.finger_angle_tol_deg for a in angs)
+
+        # 2) tips above MCPs: at least 3/4
+        raised_ok = tips_above >= 3
+
+        # 3) horizontal hand: wrist -> mean tip is near horizontal
+        wrist = lm[H.WRIST]
+        mx = sum(x for x, _ in tips_xy) / 4.0
+        my = sum(y for _, y in tips_xy) / 4.0
+        vx, vy = (mx - wrist.x), (my - wrist.y)
+        horiz_ang = abs(math.degrees(math.atan2(vy, vx)))  # 0° == perfect horizontal
+        horizontal_ok = horiz_ang <= self.horiz_tol_deg or (180 - horiz_ang) <= self.horiz_tol_deg
+
+        return parallel_ok and raised_ok and horizontal_ok
 
     def detect_middle_finger(self, hand_landmarks) -> bool:
         """
@@ -109,6 +161,7 @@ class MediapipeGestures(DetectionBase):
         recognition_result = self.gesture_recognizer.recognize(mp_image)
         result = {}
         detected_open_palm = False
+        closed_fist_score = 0.0
 
         for g in recognition_result.gestures:
             detected_category = g[0]
@@ -116,6 +169,8 @@ class MediapipeGestures(DetectionBase):
 
             if detected_category.category_name == "Open_Palm":
                 detected_open_palm = True
+            elif detected_category.category_name == "Closed_Fist":
+                closed_fist_score = max(closed_fist_score, detected_category.score)
 
         # Track "Open_Palm" positions for wave detection
         if detected_open_palm:
@@ -127,13 +182,20 @@ class MediapipeGestures(DetectionBase):
                     if len(self.wave_history) > self.max_history_length:
                         self.wave_history.pop(0)
 
-        # Detect custom gestures (e.g., middle finger)
-        landmarks = self.hands.process(rgb_frame)
-        if landmarks.multi_hand_landmarks:
-            for hand_landmarks in landmarks.multi_hand_landmarks:
+        # single Hands pass for custom geometry-based gestures
+        hands_out = self.hands.process(rgb_frame)
+
+        # custom gestures: middle finger + bowl/feeding
+        if hands_out.multi_hand_landmarks:
+            for hand_landmarks in hands_out.multi_hand_landmarks:
                 self.mp_draw.draw_landmarks(frame, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+
                 if self.detect_middle_finger(hand_landmarks):
                     result["middle_finger"] = 1.0
+
+                if self._bowl_detect(hand_landmarks.landmark):
+                    # emit both for debugging; control.py can listen to "FEED"
+                    result["Bowl"] = 1.0
 
         # Check for wave gesture and maintain persistence for 10 frames
         if self.detect_wave():
@@ -147,4 +209,4 @@ class MediapipeGestures(DetectionBase):
         else:
             self.detected_wave = False  # Reset flag after persistence ends
 
-        return result
+        return result      
