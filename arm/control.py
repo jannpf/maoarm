@@ -130,13 +130,18 @@ def control_movement() -> None:
             with mood_lock:
                 mood = current_mood
             with face_lock:  # data shared with process()
-                x, y, frame_width, frame_height, face_detected = (
+                x, y, h, w, frame_width, frame_height, face_detected = (
                     current_face.x or 0,
                     current_face.y or 0,
+                    current_face.h,
+                    current_face.w,
                     current_face.frame_width,
                     current_face.frame_height,
                     current_face.is_detected()
                 )
+            if not None in (w, h, x, y):
+                face_size_ratio = ((w*h) / (frame_width * frame_height))
+                x,y = [0.8 * v + face_size_ratio * 0.2 for v in (x,y)]
 
             current_position = c.current_position()
             if not face_detected:

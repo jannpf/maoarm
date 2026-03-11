@@ -2,5 +2,5 @@ opencv-python
 mediapipe
 matplotlib
 requests
-pyrealsense2; sys_platform == "win32" or sys_platform == "linux"
+# pyrealsense2; sys_platform == "win32" or sys_platform == "linux"
 PyQt5

@@ -31,10 +31,10 @@ class PID:
     # (lighting, crowds, distances)
     # Also, added weight to the arm changes the behaviour more than initially 
     # expected, especially due to more physical momentum of the "head"
-    kpx: float = 80.0
+    kpx: float = 60.0
     kpy: float = 12.0
-    kix: float = 2
-    kiy: float = 0.8
+    kix: float = 1.5
+    kiy: float = 0.5
     kdx: float = 2.8
     kdy: float = 1
 
