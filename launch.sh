@@ -5,6 +5,8 @@ APP_DIR="/home/jetson/src/maoarm"
 PYENV_ROOT="$HOME/.pyenv"
 PYENV_ENV="maoarm"
 
+WIFI_NAME="RoArm-M2"
+
 MOD1="arm.control"
 MOD2="cv"
 
@@ -43,48 +45,62 @@ place_window() {
     wmctrl -r "$title" -e "0,${x},${y},${w},${h}"
 }
 
-show_cancel_prompt() {
+startup_prompt() {
     local status_file
     status_file="$(mktemp)"
 
-    xterm \
-        -T "RoboCat Startup" \
-        -geometry 60x8+200+200 \
-        -fa Monospace \
-        -fs 14 \
-        -e bash -lc "
+    xterm -T "RoboCat Startup" -geometry 60x10+200+200 -e bash -lc "
+        WIFI_NAME='$WIFI_NAME'
+        STATUS_FILE='$status_file'
+
+        wifi_ready=0
+        countdown=10
+
+        while true; do
             clear
             echo
-            echo 'I am about to wake up now!.'
-            echo 'Press any key within 10 seconds to let me sleep.'
-            echo
 
-            for ((i=10; i>=1; i--)); do
-                echo -ne \"\rStarting in \${i}s... \"
-                if read -r -s -n 1 -t 1; then
-                    echo
-                    echo
-                    echo 'Startup cancelled.'
-                    echo cancel > '$status_file'
-                    sleep 1
+            if [[ \$wifi_ready -eq 0 ]]; then
+                echo 'Waiting for Wi-Fi connection...'
+                echo
+                echo \"Required network: \$WIFI_NAME\"
+                echo
+                echo 'Press any key to cancel startup.'
+
+                if nmcli -t -f NAME connection show --active | grep -Fxq \"\$WIFI_NAME\"; then
+                    wifi_ready=1
+                    continue
+                fi
+            else
+                echo 'Wi-Fi connected.'
+                echo
+                echo 'I am about to wake up now!'
+                echo 'Press any key within 10 seconds to let me sleep.'
+                echo
+                echo \"Starting in \${countdown}s...\"
+
+                if [[ \$countdown -le 0 ]]; then
+                    echo proceed > \"\$STATUS_FILE\"
                     exit 0
                 fi
-            done
 
-            echo
-            echo proceed > '$status_file'
-            exit 0
-        "
+                countdown=\$((countdown - 1))
+            fi
 
-    local result="cancel"
-    if [[ -f "$status_file" ]]; then
-        result="$(cat "$status_file")"
-        rm -f "$status_file"
-    fi
+            if read -r -s -n 1 -t 1; then
+                echo cancel > \"\$STATUS_FILE\"
+                exit 0
+            fi
+        done
+    "
+
+    [[ -f "$status_file" ]] || return 1
+    local result
+    result="$(cat "$status_file")"
+    rm -f "$status_file"
 
     [[ "$result" == "proceed" ]]
 }
-
 
 run_module_in_terminal() {
     local title="$1"
@@ -107,7 +123,7 @@ run_module_in_terminal() {
 
 sleep 5
 
-if ! show_cancel_prompt; then
+if ! startup_prompt; then
     exit 0
 fi
 
